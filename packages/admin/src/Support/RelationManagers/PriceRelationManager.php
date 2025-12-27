@@ -14,6 +14,7 @@ use Lunar\Facades\DB;
 use Lunar\Models\Currency;
 use Lunar\Models\CustomerGroup;
 use Lunar\Models\Price;
+use Lunar\Models\Supplier;
 
 class PriceRelationManager extends BaseRelationManager
 {
@@ -99,6 +100,26 @@ class PriceRelationManager extends BaseRelationManager
                         __('lunarpanel::relationmanagers.pricing.form.compare_price.helper_text')
                     )->numeric(),
                 ])->columns(2),
+
+                Forms\Components\Group::make([
+                    Forms\Components\TextInput::make('cost_price')->formatStateUsing(
+                        fn ($state) => $state?->decimal(rounding: false)
+                    )->label(
+                        __('lunarpanel::relationmanagers.pricing.form.cost_price.label')
+                    )->helperText(
+                        __('lunarpanel::relationmanagers.pricing.form.cost_price.helper_text')
+                    )->numeric(),
+                    Forms\Components\Select::make('supplier_id')
+                        ->label(
+                            __('lunarpanel::relationmanagers.pricing.form.supplier_id.label')
+                        )->placeholder(
+                            __('lunarpanel::relationmanagers.pricing.form.supplier_id.placeholder')
+                        )->helperText(
+                            __('lunarpanel::relationmanagers.pricing.form.supplier_id.helper_text')
+                        )->relationship(name: 'supplier', titleAttribute: 'name')
+                        ->searchable()
+                        ->preload(),
+                ])->columns(2),
             ])->columns(1);
     }
 
@@ -128,6 +149,13 @@ class PriceRelationManager extends BaseRelationManager
                     )->formatStateUsing(
                         fn ($state) => $state->formatted,
                     )->sortable(),
+                Tables\Columns\TextColumn::make('cost_price')
+                    ->label(
+                        __('lunarpanel::relationmanagers.pricing.table.cost_price.label')
+                    )->formatStateUsing(
+                        fn ($state) => $state?->formatted,
+                    )->placeholder('—')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('currency.code')->label(
                     __('lunarpanel::relationmanagers.pricing.table.currency.label')
                 )->sortable(),
@@ -139,6 +167,10 @@ class PriceRelationManager extends BaseRelationManager
                 )->placeholder(
                     __('lunarpanel::relationmanagers.pricing.table.customer_group.placeholder')
                 )->sortable(),
+                Tables\Columns\TextColumn::make('supplier.name')->label(
+                    __('lunarpanel::relationmanagers.pricing.table.supplier.label')
+                )->placeholder('—')
+                ->sortable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('currency')
@@ -155,12 +187,22 @@ class PriceRelationManager extends BaseRelationManager
                 )->label(
                     __('lunarpanel::relationmanagers.pricing.table.min_quantity.label')
                 ),
+                Tables\Filters\SelectFilter::make('supplier')
+                    ->relationship(name: 'supplier', titleAttribute: 'name')
+                    ->preload()
+                    ->label(
+                        __('lunarpanel::relationmanagers.pricing.table.supplier.label')
+                    ),
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()->mutateFormDataUsing(function (array $data) {
                     $currencyModel = Currency::find($data['currency_id']);
 
                     $data['price'] = (int) ($data['price'] * $currencyModel->factor);
+
+                    if (! empty($data['cost_price'])) {
+                        $data['cost_price'] = (int) ($data['cost_price'] * $currencyModel->factor);
+                    }
 
                     return $data;
                 })->label(
@@ -176,6 +218,12 @@ class PriceRelationManager extends BaseRelationManager
                     $currencyModel = Currency::find($data['currency_id']);
 
                     $data['price'] = (int) ($data['price'] * $currencyModel->factor);
+
+                    if (! empty($data['cost_price'])) {
+                        $data['cost_price'] = (int) ($data['cost_price'] * $currencyModel->factor);
+                    } else {
+                        $data['cost_price'] = null;
+                    }
 
                     return $data;
                 })->after(

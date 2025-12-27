@@ -53,6 +53,7 @@ return [
          * Run these pipelines when the cart lines are being calculated.
         */
         'cart_lines' => [
+            Lunar\Pipelines\CartLine\GetSupplierPrice::class,
             Lunar\Pipelines\CartLine\GetUnitPrice::class,
         ],
     ],
@@ -127,6 +128,7 @@ return [
         'lines.purchasable.prices.currency',
         'lines.purchasable.prices.priceable',
         'lines.purchasable.product',
+        'lines.purchasable.supplierProduct.supplier',
         'lines.cart.currency',
     ],
 

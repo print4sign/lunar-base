@@ -63,7 +63,10 @@ use Lunar\Managers\DiscountManager;
 use Lunar\Managers\PaymentManager;
 use Lunar\Managers\PricingManager;
 use Lunar\Managers\StorefrontSessionManager;
+use Lunar\Managers\SupplierManager;
 use Lunar\Managers\TaxManager;
+use Lunar\Managers\Contracts\SupplierManagerInterface;
+use Lunar\Modifiers\ProboShippingModifier;
 use Lunar\Models\Address;
 use Lunar\Models\CartLine;
 use Lunar\Models\Channel;
@@ -116,6 +119,7 @@ class LunarServiceProvider extends ServiceProvider
         'products',
         'search',
         'shipping',
+        'suppliers',
         'taxes',
         'urls',
     ];
@@ -195,6 +199,10 @@ class LunarServiceProvider extends ServiceProvider
             return $app->make(DiscountManager::class);
         });
 
+        $this->app->singleton(SupplierManagerInterface::class, function ($app) {
+            return $app->make(SupplierManager::class);
+        });
+
         $this->app->singleton(ProvidesTelemetryInsights::class, function ($app) {
             return $app->make(TelemetryInsights::class);
         });
@@ -251,6 +259,7 @@ class LunarServiceProvider extends ServiceProvider
                 MigrateGetCandy::class,
                 SyncNewCustomerOrders::class,
                 PruneCarts::class,
+                \Lunar\Console\Commands\SyncSupplierProducts::class,
             ]);
 
             if (config('lunar.cart.prune_tables.enabled', false)) {
@@ -280,6 +289,9 @@ class LunarServiceProvider extends ServiceProvider
             Logout::class,
             [CartSessionAuthListener::class, 'logout']
         );
+
+        // Register Probo shipping modifier
+        app(ShippingModifiers::class)->add(ProboShippingModifier::class);
     }
 
     protected function registerAddonManifest()

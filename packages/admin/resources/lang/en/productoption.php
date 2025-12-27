@@ -99,6 +99,9 @@ return [
                     'delete' => [
                         'label' => 'Delete',
                     ],
+                    'configure-probo' => [
+                        'label' => 'Configure',
+                    ],
                 ],
                 'empty' => [
                     'heading' => 'No Variants Configured',
@@ -112,6 +115,9 @@ return [
                     ],
                     'sku' => [
                         'label' => 'SKU',
+                    ],
+                    'cost_price' => [
+                        'label' => 'Cost Price',
                     ],
                     'price' => [
                         'label' => 'Price',

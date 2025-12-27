@@ -93,6 +93,11 @@
                     </x-filament-tables::header-cell>
                     <x-filament-tables::header-cell>
                       <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">
+                        {{ __('lunarpanel::productoption.widgets.product-options.variants-table.table.cost_price.label') }}
+                      </span>
+                    </x-filament-tables::header-cell>
+                    <x-filament-tables::header-cell>
+                      <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">
                         {{ __('lunarpanel::productoption.widgets.product-options.variants-table.table.price.label') }}
                       </span>
                     </x-filament-tables::header-cell>
@@ -141,6 +146,21 @@
                     </x-filament-tables::cell>
                     <x-filament-tables::cell class="w-32">
                       <div class="fi-ta-text grid w-full gap-y-1 px-3 py-4">
+                        @php
+                          $variantForCost = $permutation['variant_id'] ? \Lunar\Models\ProductVariant::with('basePrices.currency')->find($permutation['variant_id']) : null;
+                          $costPrice = $variantForCost?->basePrices->first()?->cost_price;
+                        @endphp
+                        @if($costPrice)
+                          <span class="text-sm text-gray-600 dark:text-gray-400">
+                            {{ $costPrice->formatted }}
+                          </span>
+                        @else
+                          <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
+                        @endif
+                      </div>
+                    </x-filament-tables::cell>
+                    <x-filament-tables::cell class="w-32">
+                      <div class="fi-ta-text grid w-full gap-y-1 px-3 py-4">
                         <x-filament::input.wrapper>
                           <x-filament::input
                                   type="text"
@@ -165,6 +185,28 @@
                           <x-filament::link :href="$this->getVariantLink($permutation['variant_id'])">
                             {{ __('lunarpanel::productoption.widgets.product-options.variants-table.actions.edit.label') }}
                           </x-filament::link>
+                          @php
+                            $variant = \Lunar\Models\ProductVariant::find($permutation['variant_id']);
+                            $hasConfiguration = $variant && !empty($variant->configuration);
+                            $variantSupplierProductId = $variant?->supplier_product_id;
+                          @endphp
+                          @if($variantSupplierProductId)
+                            <x-filament::icon-button
+                              icon="heroicon-o-cog-6-tooth"
+                              :color="$hasConfiguration ? 'success' : 'warning'"
+                              size="sm"
+                              :tooltip="$hasConfiguration ? __('lunarpanel::product.configurator.actions.edit_configuration') : __('lunarpanel::product.configurator.actions.configure')"
+                              wire:click="openConfiguratorSlideOver({{ $variantSupplierProductId }}, {{ $permutation['variant_id'] }}, {{ $this->record->id }})"
+                            />
+                          @else
+                            <x-filament::icon-button
+                              icon="heroicon-o-cog-6-tooth"
+                              color="gray"
+                              size="sm"
+                              :tooltip="__('lunarpanel::product.configurator.actions.configure')"
+                              wire:click="openSupplierSelectionModal({{ $permutation['variant_id'] }}, {{ $this->record->id }})"
+                            />
+                          @endif
                         @endif
                         <button type="button" wire:click="removeVariant('{{ $permutationIndex }}')" class="text-red-500 font-semibold text-sm hover:underline">
                           {{ __('lunarpanel::productoption.widgets.product-options.variants-table.actions.delete.label') }}
@@ -226,4 +268,6 @@
     </div>
     <x-filament-actions::modals />
   @endif
+
+  <x-filament-actions::modals />
 </x-filament-widgets::widget>

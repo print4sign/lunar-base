@@ -113,6 +113,9 @@ return [
             'values' => [
                 'label' => 'Values',
             ],
+            'supplier' => [
+                'label' => 'Supplier',
+            ],
         ],
     ],
 ];

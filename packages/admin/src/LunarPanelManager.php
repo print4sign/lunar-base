@@ -65,6 +65,7 @@ class LunarPanelManager
         Resources\ProductTypeResource::class,
         Resources\ProductVariantResource::class,
         Resources\StaffResource::class,
+        Resources\SupplierResource::class,
         Resources\TagResource::class,
         Resources\TaxClassResource::class,
         Resources\TaxZoneResource::class,
@@ -132,6 +133,7 @@ class LunarPanelManager
             'lunar::product-variants' => 'lucide-shapes',
             'lunar::products' => 'lucide-tag',
             'lunar::staff' => 'lucide-shield',
+            'lunar::suppliers' => 'lucide-factory',
             'lunar::tags' => 'lucide-tags',
             'lunar::tax' => 'lucide-landmark',
             'lunar::urls' => 'lucide-globe',
@@ -273,6 +275,8 @@ class LunarPanelManager
             ->livewireComponents([
                 Resources\OrderResource\Pages\Components\OrderItemsTable::class,
                 \Lunar\Admin\Filament\Resources\CollectionGroupResource\Widgets\CollectionTreeView::class,
+                \Lunar\Admin\Livewire\Components\ProboConfigurator::class,
+                \Lunar\Admin\Livewire\Components\HelloPrintConfigurator::class,
             ])
             ->navigationGroups([
                 'Catalog',

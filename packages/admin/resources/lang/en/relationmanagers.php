@@ -206,6 +206,9 @@ return [
             'price' => [
                 'label' => 'Price',
             ],
+            'cost_price' => [
+                'label' => 'Cost Price',
+            ],
             'customer_group' => [
                 'label' => 'Customer Group',
                 'placeholder' => 'All Customer Groups',
@@ -215,6 +218,9 @@ return [
             ],
             'currency' => [
                 'label' => 'Currency',
+            ],
+            'supplier' => [
+                'label' => 'Supplier',
             ],
         ],
         'form' => [
@@ -241,6 +247,15 @@ return [
             'compare_price' => [
                 'label' => 'Comparison Price',
                 'helper_text' => 'The original price or RRP, for comparison with its purchase price.',
+            ],
+            'cost_price' => [
+                'label' => 'Cost Price',
+                'helper_text' => 'The cost price from the supplier for margin calculation.',
+            ],
+            'supplier_id' => [
+                'label' => 'Supplier',
+                'placeholder' => 'No Supplier',
+                'helper_text' => 'Select which supplier provides this price.',
             ],
             'basePrices' => [
                 'title' => 'Prices',

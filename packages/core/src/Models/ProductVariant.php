@@ -24,8 +24,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 /**
  * @property int $id
  * @property int $product_id
+ * @property ?int $supplier_product_id
  * @property int $tax_class_id
  * @property ?\Illuminate\Support\Collection $attribute_data
+ * @property ?array $configuration
  * @property ?string $tax_ref
  * @property int $unit_quantity
  * @property int $min_quantity
@@ -76,6 +78,7 @@ class ProductVariant extends BaseModel implements Contracts\ProductVariant, HasT
     protected $casts = [
         'requires_shipping' => 'bool',
         'attribute_data' => AsAttributeData::class,
+        'configuration' => 'array',
     ];
 
     /**
@@ -94,6 +97,38 @@ class ProductVariant extends BaseModel implements Contracts\ProductVariant, HasT
     public function taxClass(): BelongsTo
     {
         return $this->belongsTo(TaxClass::modelClass());
+    }
+
+    /**
+     * Return the supplier product relationship.
+     */
+    public function supplierProduct(): BelongsTo
+    {
+        return $this->belongsTo(SupplierProduct::modelClass());
+    }
+
+    /**
+     * Check if this variant is backed by a supplier.
+     */
+    public function isSupplierBacked(): bool
+    {
+        return ! is_null($this->supplier_product_id);
+    }
+
+    /**
+     * Get the configuration for this variant.
+     */
+    public function getConfiguration(): ?array
+    {
+        return $this->configuration;
+    }
+
+    /**
+     * Scope to variants backed by suppliers.
+     */
+    public function scopeSupplierBacked($query)
+    {
+        return $query->whereNotNull('supplier_product_id');
     }
 
     public function values(): BelongsToMany

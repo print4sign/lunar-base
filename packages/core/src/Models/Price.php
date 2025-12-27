@@ -19,6 +19,8 @@ use Spatie\LaravelBlink\BlinkFacade as Blink;
  * @property int $priceable_id
  * @property \Lunar\DataTypes\Price $price
  * @property ?int $compare_price
+ * @property ?\Lunar\DataTypes\Price $cost_price
+ * @property ?int $supplier_id
  * @property int $min_quantity
  * @property ?\Illuminate\Support\Carbon $created_at
  * @property ?\Illuminate\Support\Carbon $updated_at
@@ -47,6 +49,7 @@ class Price extends BaseModel implements Contracts\Price
     protected $casts = [
         'price' => CastsPrice::class,
         'compare_price' => CastsPrice::class,
+        'cost_price' => CastsPrice::class,
     ];
 
     /**
@@ -71,6 +74,62 @@ class Price extends BaseModel implements Contracts\Price
     public function customerGroup(): BelongsTo
     {
         return $this->belongsTo(CustomerGroup::class);
+    }
+
+    /**
+     * Return the supplier relationship.
+     */
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    /**
+     * Scope to prices from a specific supplier.
+     */
+    public function scopeFromSupplier($query, int $supplierId)
+    {
+        return $query->where('supplier_id', $supplierId);
+    }
+
+    /**
+     * Scope to prices that have a cost price.
+     */
+    public function scopeWithCostPrice($query)
+    {
+        return $query->whereNotNull('cost_price');
+    }
+
+    /**
+     * Check if this price has a supplier.
+     */
+    public function hasSupplier(): bool
+    {
+        return ! is_null($this->supplier_id);
+    }
+
+    /**
+     * Get the margin (sell price - cost price).
+     */
+    public function getMargin(): ?int
+    {
+        if (is_null($this->cost_price)) {
+            return null;
+        }
+
+        return $this->price->value - $this->cost_price->value;
+    }
+
+    /**
+     * Get the margin percentage.
+     */
+    public function getMarginPercentage(): ?float
+    {
+        if (is_null($this->cost_price) || $this->price->value === 0) {
+            return null;
+        }
+
+        return ($this->getMargin() / $this->price->value) * 100;
     }
 
     /**

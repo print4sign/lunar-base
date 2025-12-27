@@ -83,6 +83,12 @@ class VariantSwitcherTable extends TableWidget
                         )->join(', ');
                     }
                 ),
+            Tables\Columns\TextColumn::make('supplierProduct.supplier.name')
+                ->label(
+                    __('lunarpanel::widgets.variant_switcher.table.supplier.label')
+                )
+                ->placeholder('—')
+                ->sortable(),
         ];
     }
 

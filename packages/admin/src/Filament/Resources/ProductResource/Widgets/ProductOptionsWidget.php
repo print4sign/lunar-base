@@ -11,6 +11,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
+use Filament\Support\Enums\Alignment;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -21,10 +22,14 @@ use Lunar\Facades\DB;
 use Lunar\Models\Contracts\ProductOption as ProductOptionContract;
 use Lunar\Models\Contracts\ProductOptionValue as ProductOptionValueContract;
 use Lunar\Models\Contracts\ProductVariant as ProductVariantContract;
+use Lunar\Models\Currency;
 use Lunar\Models\Language;
 use Lunar\Models\ProductOption;
 use Lunar\Models\ProductOptionValue;
 use Lunar\Models\ProductVariant;
+use Livewire\Attributes\On;
+use Lunar\Models\Supplier;
+use Lunar\Models\SupplierProduct;
 
 class ProductOptionsWidget extends BaseWidget implements HasActions, HasForms
 {
@@ -47,6 +52,15 @@ class ProductOptionsWidget extends BaseWidget implements HasActions, HasForms
     protected static bool $isLazy = false;
 
     public function mount()
+    {
+        $this->configureBaseOptions();
+    }
+
+    /**
+     * Refresh the widget when a variant is updated from the configurator.
+     */
+    #[On('variant-updated')]
+    public function refreshWidget(): void
     {
         $this->configureBaseOptions();
     }
@@ -395,6 +409,7 @@ class ProductOptionsWidget extends BaseWidget implements HasActions, HasForms
                         'product_id' => $this->record->id,
                     ]);
                     $basePrice = null;
+                    $currency = Currency::getDefault();
 
                     if (! empty($variantData['variant_id'])) {
                         $variant = ProductVariant::find($variantData['variant_id']);
@@ -409,16 +424,28 @@ class ProductOptionsWidget extends BaseWidget implements HasActions, HasForms
                         $variant = $copiedVariant->replicate();
                         $variant->save();
 
-                        $basePrice = $copiedVariant->basePrices->first()->replicate();
-                        $basePrice->priceable_id = $variant->id;
+                        $basePrice = $copiedVariant->basePrices->first()?->replicate();
+                        if ($basePrice) {
+                            $basePrice->priceable_id = $variant->id;
+                        }
                     }
 
                     $variant->sku = $variantData['sku'];
                     $variant->stock = $variantData['stock'];
                     $variant->save();
 
-                    $basePrice->price = (int) bcmul($variantData['price'], $basePrice->currency->factor);
-                    $basePrice->save();
+                    // Create a new base price if one doesn't exist
+                    if (! $basePrice) {
+                        $basePrice = $variant->prices()->create([
+                            'min_quantity' => 1,
+                            'currency_id' => $currency->id,
+                            'price' => (int) bcmul($variantData['price'], $currency->factor),
+                        ]);
+                    } else {
+                        $priceCurrency = $basePrice->currency ?? $currency;
+                        $basePrice->price = (int) bcmul($variantData['price'], $priceCurrency->factor);
+                        $basePrice->save();
+                    }
 
                     $optionsValues = $this->mapOptionValuesToIds($variantData['values']);
 
@@ -461,6 +488,143 @@ class ProductOptionsWidget extends BaseWidget implements HasActions, HasForms
             'product' => $this->record,
             'record' => $variantId,
         ]);
+    }
+
+    /**
+     * Open the configurator slideOver directly for a variant.
+     */
+    public function openConfiguratorSlideOver(int $supplierProductId, ?int $variantId, int $productId): void
+    {
+        $this->mountAction('supplierConfigurator', [
+            'supplierProductId' => $supplierProductId,
+            'variantId' => $variantId,
+            'productId' => $productId,
+        ]);
+    }
+
+    /**
+     * Open the supplier selection modal for a variant without a supplier product.
+     */
+    public function openSupplierSelectionModal(?int $variantId, int $productId): void
+    {
+        $this->mountAction('selectSupplier', [
+            'variantId' => $variantId,
+            'productId' => $productId,
+        ]);
+    }
+
+    /**
+     * Action to select a supplier and product before opening the configurator.
+     */
+    public function selectSupplierAction(): Action
+    {
+        return Action::make('selectSupplier')
+            ->modalHeading(__('lunarpanel::product.configurator.modal.title'))
+            ->form([
+                Select::make('supplier_id')
+                    ->label(__('lunarpanel::product.configurator.modal.select_supplier'))
+                    ->options(fn () => Supplier::query()->pluck('name', 'id'))
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(fn (callable $set) => $set('supplier_product_id', null)),
+                Select::make('supplier_product_id')
+                    ->label(__('lunarpanel::product.configurator.modal.select_product'))
+                    ->searchable()
+                    ->getSearchResultsUsing(function (string $search, callable $get) {
+                        $supplierId = $get('supplier_id');
+                        if (! $supplierId) {
+                            return [];
+                        }
+
+                        return SupplierProduct::where('supplier_id', $supplierId)
+                            ->where(function ($query) use ($search) {
+                                $query->where('external_name', 'like', "%{$search}%")
+                                    ->orWhere('external_id', 'like', "%{$search}%");
+                            })
+                            ->limit(50)
+                            ->pluck('external_name', 'id');
+                    })
+                    ->getOptionLabelUsing(fn ($value) => SupplierProduct::find($value)?->external_name)
+                    ->required()
+                    ->visible(fn (callable $get) => filled($get('supplier_id'))),
+            ])
+            ->action(function (array $data, array $arguments) {
+                // Open the configurator with the selected supplier product
+                $this->mountAction('supplierConfigurator', [
+                    'supplierProductId' => $data['supplier_product_id'],
+                    'variantId' => $arguments['variantId'] ?? null,
+                    'productId' => $arguments['productId'] ?? $this->record->id,
+                ]);
+            });
+    }
+
+    /**
+     * Action to display the supplier configurator slideOver.
+     */
+    public function supplierConfiguratorAction(): Action
+    {
+        return Action::make('supplierConfigurator')
+            ->slideOver()
+            ->stickyModalFooter()
+            ->modalFooterActionsAlignment(Alignment::End)
+            ->modalHeading(fn (array $arguments) => $this->getConfiguratorHeading($arguments))
+            ->modalWidth('4xl')
+            ->modalContent(fn (array $arguments) => view('lunarpanel::filament.modals.supplier-configurator', [
+                'variantId' => $arguments['variantId'] ?? null,
+                'supplierProductId' => $arguments['supplierProductId'] ?? null,
+                'productId' => $arguments['productId'] ?? $this->record->id,
+                'driver' => $this->getSupplierDriver($arguments['supplierProductId'] ?? null),
+            ]))
+            ->modalFooterActions(fn (array $arguments) => [
+                Action::make('saveConfiguration')
+                    ->label(__('lunarpanel::product.configurator.actions.link_variant'))
+                    ->alpineClickHandler('$dispatch("configurator-save")'),
+                Action::make('unlinkConfiguration')
+                    ->label(__('lunarpanel::product.configurator.actions.unlink'))
+                    ->color('danger')
+                    ->alpineClickHandler('$dispatch("configurator-unlink")'),
+                Action::make('resetConfigurator')
+                    ->label(__('lunarpanel::product.configurator.actions.reset'))
+                    ->color('gray')
+                    ->alpineClickHandler('$dispatch("configurator-reset")'),
+            ])
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel(__('filament::components/modal.actions.close.label'));
+    }
+
+    /**
+     * Get the configurator modal heading with product name.
+     */
+    protected function getConfiguratorHeading(array $arguments): string
+    {
+        $supplierProductId = $arguments['supplierProductId'] ?? null;
+
+        if (! $supplierProductId) {
+            return __('lunarpanel::product.configurator.modal.title');
+        }
+
+        $supplierProduct = SupplierProduct::find($supplierProductId);
+        $productName = $supplierProduct?->external_name;
+
+        if ($productName) {
+            return __('lunarpanel::product.configurator.modal.title_with_product', ['product' => $productName]);
+        }
+
+        return __('lunarpanel::product.configurator.modal.title');
+    }
+
+    /**
+     * Get the supplier driver for a supplier product.
+     */
+    protected function getSupplierDriver(?int $supplierProductId): ?string
+    {
+        if (! $supplierProductId) {
+            return null;
+        }
+
+        $supplierProduct = SupplierProduct::with('supplier')->find($supplierProductId);
+
+        return $supplierProduct?->supplier?->driver;
     }
 
     protected function mapOptionValue(ProductOptionValueContract $value, bool $enabled = true)

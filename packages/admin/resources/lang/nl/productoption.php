@@ -110,6 +110,9 @@ return [
                     'sku' => [
                         'label' => 'SKU',
                     ],
+                    'cost_price' => [
+                        'label' => 'Inkoopprijs',
+                    ],
                     'price' => [
                         'label' => 'Prijs',
                     ],

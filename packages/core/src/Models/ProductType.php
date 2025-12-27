@@ -14,6 +14,8 @@ use Lunar\Database\Factories\ProductTypeFactory;
 /**
  * @property int $id
  * @property string $name
+ * @property bool $configurable
+ * @property ?array $configurator_schema
  * @property ?\Illuminate\Support\Carbon $created_at
  * @property ?\Illuminate\Support\Carbon $updated_at
  */
@@ -39,6 +41,24 @@ class ProductType extends BaseModel implements Contracts\ProductType
      * @var array
      */
     protected $guarded = [];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'configurable' => 'boolean',
+        'configurator_schema' => 'array',
+    ];
+
+    /**
+     * Check if this product type is configurable.
+     */
+    public function isConfigurable(): bool
+    {
+        return $this->configurable ?? false;
+    }
 
     public function mappedAttributes(): MorphToMany
     {
