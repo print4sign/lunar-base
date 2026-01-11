@@ -13,6 +13,7 @@ use Lunar\Scraper\Admin\Synthesizers\TranslatedRepeaterSynth;
 use Lunar\Scraper\Console\Commands\DownloadProductImages;
 use Lunar\Scraper\Console\Commands\ImportScrapedProducts;
 use Lunar\Scraper\Console\Commands\InstallScraperScripts;
+use Lunar\Scraper\Console\Commands\RewriteArticlesCommand;
 use Lunar\Scraper\Console\Commands\ScrapeArticlesCommand;
 use Lunar\Scraper\Console\Commands\ScrapeProbo;
 use Lunar\Scraper\Console\Commands\ScrapeProboAll;
@@ -47,6 +48,7 @@ class ScraperServiceProvider extends ServiceProvider
                 ScrapeProbo::class,
                 ScrapeProboAll::class,
                 ScrapeArticlesCommand::class,
+                RewriteArticlesCommand::class,
                 ImportScrapedProducts::class,
                 DownloadProductImages::class,
                 InstallScraperScripts::class,
