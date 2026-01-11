@@ -24,6 +24,9 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Lunar\Admin\Filament\AvatarProviders\GravatarProvider;
 use Lunar\Admin\Filament\Pages;
 use Lunar\Admin\Filament\Resources;
+use Lunar\Admin\Filament\Widgets\Dashboard\Carts\AbandonedCartsTable;
+use Lunar\Admin\Filament\Widgets\Dashboard\Carts\ActiveCartsTable;
+use Lunar\Admin\Filament\Widgets\Dashboard\Carts\CartStatsOverview;
 use Lunar\Admin\Filament\Widgets\Dashboard\Orders\AverageOrderValueChart;
 use Lunar\Admin\Filament\Widgets\Dashboard\Orders\LatestOrdersTable;
 use Lunar\Admin\Filament\Widgets\Dashboard\Orders\NewVsReturningCustomersChart;
@@ -31,6 +34,7 @@ use Lunar\Admin\Filament\Widgets\Dashboard\Orders\OrdersSalesChart;
 use Lunar\Admin\Filament\Widgets\Dashboard\Orders\OrderStatsOverview;
 use Lunar\Admin\Filament\Widgets\Dashboard\Orders\OrderTotalsChart;
 use Lunar\Admin\Filament\Widgets\Dashboard\Orders\PopularProductsTable;
+use Lunar\Admin\Filament\Widgets\Suppliers\DiscontinuedProductsTable;
 use Lunar\Admin\Http\Controllers\DownloadPdfController;
 use Lunar\Admin\Support\Facades\LunarAccessControl;
 use Stephenjude\FilamentTwoFactorAuthentication\TwoFactorAuthenticationPlugin;
@@ -49,8 +53,10 @@ class LunarPanelManager
 
     protected static $resources = [
         Resources\ActivityResource::class,
+        Resources\ArticleResource::class,
         Resources\AttributeGroupResource::class,
         Resources\BrandResource::class,
+        Resources\CartResource::class,
         Resources\ChannelResource::class,
         Resources\CollectionGroupResource::class,
         Resources\CollectionResource::class,
@@ -66,6 +72,7 @@ class LunarPanelManager
         Resources\ProductVariantResource::class,
         Resources\StaffResource::class,
         Resources\SupplierResource::class,
+        Resources\SupplierProductResource::class,
         Resources\TagResource::class,
         Resources\TaxClassResource::class,
         Resources\TaxZoneResource::class,
@@ -84,6 +91,10 @@ class LunarPanelManager
         NewVsReturningCustomersChart::class,
         PopularProductsTable::class,
         LatestOrdersTable::class,
+        CartStatsOverview::class,
+        ActiveCartsTable::class,
+        AbandonedCartsTable::class,
+        DiscontinuedProductsTable::class,
     ];
 
     public function register(): self
@@ -130,6 +141,7 @@ class LunarPanelManager
             'lunar::product-inventory' => 'lucide-combine',
             'lunar::product-options' => 'lucide-list',
             'lunar::product-shipping' => 'lucide-truck',
+            'lunar::product-upload' => 'lucide-upload',
             'lunar::product-variants' => 'lucide-shapes',
             'lunar::products' => 'lucide-tag',
             'lunar::staff' => 'lucide-shield',
@@ -321,6 +333,16 @@ class LunarPanelManager
     }
 
     /**
+     * Register additional resources from external packages.
+     *
+     * @param  array<class-string<\Filament\Resources\Resource>>  $resources
+     */
+    public static function registerResources(array $resources): void
+    {
+        static::$resources = array_merge(static::$resources, $resources);
+    }
+
+    /**
      * @return array<class-string<\Filament\Pages\Page>>
      */
     public static function getPages(): array
@@ -329,11 +351,31 @@ class LunarPanelManager
     }
 
     /**
+     * Register additional pages from external packages.
+     *
+     * @param  array<class-string<\Filament\Pages\Page>>  $pages
+     */
+    public static function registerPages(array $pages): void
+    {
+        static::$pages = array_merge(static::$pages, $pages);
+    }
+
+    /**
      * @return array<class-string<\Filament\Widgets\Widget>>
      */
     public static function getWidgets(): array
     {
         return static::$widgets;
+    }
+
+    /**
+     * Register additional widgets from external packages.
+     *
+     * @param  array<class-string<\Filament\Widgets\Widget>>  $widgets
+     */
+    public static function registerWidgets(array $widgets): void
+    {
+        static::$widgets = array_merge(static::$widgets, $widgets);
     }
 
     public function useRoleAsAdmin(string|array $roleHandle): self
