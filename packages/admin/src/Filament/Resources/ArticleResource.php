@@ -7,6 +7,7 @@ use Filament\Forms\Form;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Lunar\Admin\Filament\Resources\ArticleResource\Pages;
+use Lunar\Admin\Support\Forms\Components\TranslatedText;
 use Lunar\Admin\Support\Resources\BaseResource;
 use Lunar\Models\Contracts\Article as ArticleContract;
 
@@ -45,30 +46,21 @@ class ArticleResource extends BaseResource
                 ->schema([
                     Forms\Components\Section::make()
                         ->schema([
-                            Forms\Components\TextInput::make('title.nl')
-                                ->label(__('lunarpanel::article.form.title.label').' (NL)')
+                            TranslatedText::make('title')
+                                ->label(__('lunarpanel::article.form.title.label'))
                                 ->required()
-                                ->maxLength(255),
-                            Forms\Components\TextInput::make('title.en')
-                                ->label(__('lunarpanel::article.form.title.label').' (EN)')
                                 ->maxLength(255),
                             Forms\Components\TextInput::make('slug')
                                 ->label(__('lunarpanel::article.form.slug.label'))
                                 ->required()
                                 ->unique(ignoreRecord: true)
                                 ->maxLength(255),
-                            Forms\Components\Textarea::make('excerpt.nl')
-                                ->label(__('lunarpanel::article.form.excerpt.label').' (NL)')
-                                ->rows(3),
-                            Forms\Components\Textarea::make('excerpt.en')
-                                ->label(__('lunarpanel::article.form.excerpt.label').' (EN)')
-                                ->rows(3),
-                            Forms\Components\RichEditor::make('body.nl')
-                                ->label(__('lunarpanel::article.form.body.label').' (NL)')
+                            TranslatedText::make('excerpt')
+                                ->label(__('lunarpanel::article.form.excerpt.label')),
+                            TranslatedText::make('body')
+                                ->label(__('lunarpanel::article.form.body.label'))
+                                ->optionRichtext(true)
                                 ->required()
-                                ->columnSpanFull(),
-                            Forms\Components\RichEditor::make('body.en')
-                                ->label(__('lunarpanel::article.form.body.label').' (EN)')
                                 ->columnSpanFull(),
                         ])
                         ->columns(2)
@@ -101,12 +93,8 @@ class ArticleResource extends BaseResource
                                 ->label(__('lunarpanel::article.form.source_url.label'))
                                 ->url()
                                 ->disabled(),
-                            Forms\Components\Textarea::make('meta_description.nl')
-                                ->label(__('lunarpanel::article.form.meta_description.label').' (NL)')
-                                ->rows(2),
-                            Forms\Components\Textarea::make('meta_description.en')
-                                ->label(__('lunarpanel::article.form.meta_description.label').' (EN)')
-                                ->rows(2),
+                            TranslatedText::make('meta_description')
+                                ->label(__('lunarpanel::article.form.meta_description.label')),
                         ])
                         ->columnSpan(['lg' => 1]),
                 ])
@@ -118,8 +106,9 @@ class ArticleResource extends BaseResource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('title.nl')
+                Tables\Columns\TextColumn::make('title')
                     ->label(__('lunarpanel::article.table.title.label'))
+                    ->formatStateUsing(fn ($record) => $record->getTitle())
                     ->searchable()
                     ->sortable()
                     ->limit(50),
