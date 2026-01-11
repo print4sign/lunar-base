@@ -12,7 +12,7 @@ use Lunar\Models\Contracts\Article as ArticleContract;
 
 class ArticleResource extends BaseResource
 {
-    protected static ?string $permission = 'content:manage-articles';
+    protected static ?string $permission = 'settings';
 
     protected static ?string $model = ArticleContract::class;
 
