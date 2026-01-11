@@ -2,16 +2,25 @@
 
 namespace App\Livewire\Pages;
 
+use App\Livewire\Concerns\HasLocale;
 use Livewire\Component;
+use Lunar\Models\Article;
 use Lunar\Models\Collection;
 use Lunar\Models\Product;
 
 class Home extends Component
 {
+    use HasLocale;
+
+    public function mount(string $locale = 'nl'): void
+    {
+        $this->initializeLocale($locale);
+    }
+
     public function render()
     {
         $featuredProducts = Product::query()
-            ->with(['defaultUrl', 'variants.prices.currency', 'thumbnail'])
+            ->with(['defaultUrl', 'variants.prices.currency', 'thumbnail', 'productOptions', 'images'])
             ->whereHas('variants.prices')
             ->limit(8)
             ->get();
@@ -24,6 +33,10 @@ class Home extends Component
         return view('livewire.pages.home', [
             'featuredProducts' => $featuredProducts,
             'collections' => $collections,
-        ])->layout('layouts.storefront', ['title' => 'Home']);
+            'articles' => Article::published()
+                ->orderBy('published_at', 'desc')
+                ->take(4)
+                ->get(),
+        ])->layout('layouts.storefront', ['title' => __('storefront.nav.home')]);
     }
 }
