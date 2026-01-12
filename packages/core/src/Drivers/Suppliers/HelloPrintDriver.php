@@ -45,7 +45,12 @@ class HelloPrintDriver extends AbstractSupplierDriver implements ProvidesUploadS
             ->withHeaders([
                 'Authorization' => "Bearer {$apiKey}",
                 'Accept' => 'application/json',
-            ]);
+                'Content-Type' => 'application/json',
+                'User-Agent' => 'LunarPHP/1.0 (Print4Sign; +https://print4sign.com)',
+                'Accept-Language' => 'en-US,en;q=0.9',
+                'Cache-Control' => 'no-cache',
+            ])
+            ->timeout(30);
     }
 
     public function syncCatalog(): Collection

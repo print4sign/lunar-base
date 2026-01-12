@@ -1,6 +1,9 @@
 <x-filament-panels::page>
     {{ $this->infolist }}
 
+    {{-- AI Product Matcher Modal --}}
+    @livewire('lunar.admin.livewire.components.a-i-product-matcher', key('ai-matcher-' . $this->getVariant()->id))
+
     {{-- Probo Configurator Modal - shown for both existing supplier products and new linking --}}
     <x-filament::modal
         id="probo-configurator-modal"

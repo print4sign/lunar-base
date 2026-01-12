@@ -17,6 +17,13 @@ use Lunar\Models\Contracts\SupplierOrder;
 abstract class AbstractSupplierDriver implements SupplierDriverInterface
 {
     /**
+     * Section identifiers for dynamic visibility control.
+     */
+    public const SECTION_UPLOAD = 'upload';
+    public const SECTION_PRICING = 'pricing';
+    public const SECTION_FULFILLMENT = 'fulfillment';
+
+    /**
      * The supplier instance.
      */
     protected Supplier $supplier;

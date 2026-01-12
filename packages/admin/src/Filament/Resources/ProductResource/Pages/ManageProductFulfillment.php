@@ -18,6 +18,7 @@ use Lunar\Models\Contracts\ProductVariant as ProductVariantContract;
 use Lunar\Models\Currency;
 use Lunar\Models\Supplier;
 use Lunar\Models\SupplierProduct;
+use Lunar\Services\AIProductMatcherService;
 
 class ManageProductFulfillment extends BaseEditRecord
 {
@@ -146,6 +147,18 @@ class ManageProductFulfillment extends BaseEditRecord
                     $this->unlinkSupplier();
                 });
         } else {
+            // AI Matching action - only visible if AI is configured
+            $aiMatcher = app(AIProductMatcherService::class);
+            if ($aiMatcher->isConfigured()) {
+                $actions[] = Action::make('ai_match')
+                    ->label(__('lunarpanel::productvariant.fulfillment.actions.ai_match'))
+                    ->icon('heroicon-o-sparkles')
+                    ->color('info')
+                    ->action(function () {
+                        $this->dispatch('open-ai-matcher-modal', variantId: $this->getVariant()->id);
+                    });
+            }
+
             $actions[] = Action::make('link_supplier')
                 ->label(__('lunarpanel::productvariant.fulfillment.actions.link_supplier'))
                 ->icon('heroicon-o-link')

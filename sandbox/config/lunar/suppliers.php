@@ -26,13 +26,25 @@ return [
     */
 
     'drivers' => [
+        'internal' => [
+            'class' => \Lunar\Drivers\Suppliers\InternalDriver::class,
+        ],
         'probo' => [
             'class' => \Lunar\Drivers\Suppliers\ProboDriver::class,
+            'api_key' => env('PROBO_API_KEY'),
             'base_url' => env('PROBO_API_URL', 'https://api.proboprints.com/'),
+            'sandbox' => env('PROBO_SANDBOX', false),
         ],
         'helloprint' => [
-            'class' => \Lunar\Drivers\Suppliers\HelloprintDriver::class,
+            'class' => \Lunar\Drivers\Suppliers\HelloPrintDriver::class,
+            'api_key' => env('HELLOPRINT_API_KEY'),
             'base_url' => env('HELLOPRINT_API_URL', 'https://api.helloprint.com/'),
+            'sandbox' => env('HELLOPRINT_SANDBOX', false),
+        ],
+        'printcom' => [
+            'class' => \Lunar\Drivers\Suppliers\PrintComDriver::class,
+            'api_key' => env('PRINTCOM_API_KEY'),
+            'sandbox' => env('PRINTCOM_SANDBOX', false),
         ],
         'offline' => [
             'class' => \Lunar\Drivers\Suppliers\OfflineDriver::class,

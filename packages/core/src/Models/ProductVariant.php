@@ -116,6 +116,14 @@ class ProductVariant extends BaseModel implements Contracts\ProductVariant, HasT
     }
 
     /**
+     * Check if this variant is dynamic.
+     */
+    public function isDynamic(): bool
+    {
+        return (bool) ($this->is_dynamic ?? false);
+    }
+
+    /**
      * Get the configuration for this variant.
      */
     public function getConfiguration(): ?array

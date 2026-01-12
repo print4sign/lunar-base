@@ -22,13 +22,21 @@
             "options": {
                 "symlink": true
             }
+        },
+        {
+            "type": "path",
+            "url": "../packages/search",
+            "options": {
+                "symlink": true
+            }
         }
     ],
     "require": {
         "php": "^8.2",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
-        "lunarphp/lunar": "@dev"
+        "lunarphp/lunar": "@dev",
+        "lunarphp/search": "@dev"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -44,7 +52,10 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "files": [
+            "app/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

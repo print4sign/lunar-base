@@ -139,6 +139,12 @@ return [
         'shipping' => [
             'label' => 'Verzending',
         ],
+        'upload' => [
+            'label' => 'Upload Vereisten',
+        ],
+        'fulfillment' => [
+            'label' => 'Fulfillment',
+        ],
         'variants' => [
             'label' => 'Varianten',
         ],
@@ -152,6 +158,7 @@ return [
     ],
 
     'configurator' => [
+        'title' => 'Product Configurator',
         'loading' => 'Configurator laden...',
         'select_option' => 'Selecteer een optie',
         'quantity' => 'Aantal',

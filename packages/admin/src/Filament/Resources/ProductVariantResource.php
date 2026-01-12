@@ -49,6 +49,8 @@ class ProductVariantResource extends BaseResource
             Pages\ManageVariantIdentifiers::class,
             Pages\ManageVariantInventory::class,
             Pages\ManageVariantShipping::class,
+            Pages\ManageVariantUpload::class,
+            Pages\ManageVariantFulfillment::class,
         ];
     }
 
@@ -332,6 +334,8 @@ class ProductVariantResource extends BaseResource
             'identifiers' => Pages\ManageVariantIdentifiers::route('/{record}/identifiers'),
             'inventory' => Pages\ManageVariantInventory::route('/{record}/inventory'),
             'shipping' => Pages\ManageVariantShipping::route('/{record}/shipping'),
+            'upload' => Pages\ManageVariantUpload::route('/{record}/upload'),
+            'fulfillment' => Pages\ManageVariantFulfillment::route('/{record}/fulfillment'),
         ];
     }
 }

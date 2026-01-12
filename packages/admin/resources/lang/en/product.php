@@ -139,6 +139,12 @@ return [
         'shipping' => [
             'label' => 'Shipping',
         ],
+        'upload' => [
+            'label' => 'Upload Requirements',
+        ],
+        'fulfillment' => [
+            'label' => 'Fulfillment',
+        ],
         'variants' => [
             'label' => 'Variants',
         ],
@@ -152,6 +158,7 @@ return [
     ],
 
     'configurator' => [
+        'title' => 'Product Configurator',
         'loading' => 'Loading configurator...',
         'select_option' => 'Select an option',
         'quantity' => 'Quantity',
