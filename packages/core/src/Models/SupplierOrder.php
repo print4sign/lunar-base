@@ -69,10 +69,21 @@ class SupplierOrder extends BaseModel implements Contracts\SupplierOrder
     protected $casts = [
         'external_data' => 'array',
         'tracking' => 'array',
+        'artwork_files' => 'array',
+        'supplier_additional_costs' => 'array',
+        'tracking_numbers' => 'array',
         'cost_price' => PriceCast::class,
         'submitted_at' => 'datetime',
         'shipped_at' => 'datetime',
         'delivered_at' => 'datetime',
+        'cancellation_deadline' => 'datetime',
+        'cancellation_requested_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'artwork_approval_deadline' => 'datetime',
+        'estimated_delivery_date' => 'date',
+        'actual_delivery_date' => 'date',
+        'refund_issued_at' => 'datetime',
     ];
 
     /**
