@@ -81,8 +81,7 @@ test('getPrice returns PriceResponse with zero cost and sell price', function ()
     expect($result)->toBeInstanceOf(\Lunar\Base\DataTransferObjects\Supplier\PriceResponse::class)
         ->and($result->costPrice)->toBe(0)
         ->and($result->sellPrice)->toBe(0)
-        ->and($result->currency)->toBe('EUR')
-        ->and($result->meta)->toHaveKey('internal', true);
+        ->and($result->currency)->toBe('EUR');
 });
 
 test('getBulkPrices returns empty collection', function () {
@@ -126,7 +125,9 @@ test('submitOrder generates valid internal external ID', function () {
     expect($result)->toBeInstanceOf(\Lunar\Base\DataTransferObjects\Supplier\OrderResponse::class)
         ->and($result->success)->toBeTrue()
         ->and($result->externalId)->toStartWith('INTERNAL-ORD-12345-999')
-        ->and($result->status)->toBe('submitted');
+        ->and($result->status)->toBe('submitted')
+        ->and($result->data)->toHaveKey('type', 'internal')
+        ->and($result->data)->toHaveKey('submitted_at');
 });
 
 test('submitOrder external ID format includes reference and line ID', function () {
@@ -151,7 +152,8 @@ test('getOrderStatus returns processing status', function () {
 
     expect($result)->toBeInstanceOf(\Lunar\Base\DataTransferObjects\Supplier\StatusResponse::class)
         ->and($result->status)->toBe('processing')
-        ->and($result->externalId)->toBe('INTERNAL-TEST-001-42');
+        ->and($result->externalId)->toBe('INTERNAL-TEST-001-42')
+        ->and($result->data)->toHaveKey('type', 'internal');
 });
 
 test('cancelOrder always returns true', function () {
@@ -174,7 +176,7 @@ test('getConfiguratorComponent returns null', function () {
 });
 
 test('getDynamicPrice delegates to getPrice', function () {
-    $result = $this->driver->getDynamicPrice('test-product', ['quantity' => 1]);
+    $result = $this->driver->getDynamicPrice('test-product', ['quantity' => 1], 1);
 
     expect($result)->toBeInstanceOf(\Lunar\Base\DataTransferObjects\Supplier\PriceResponse::class)
         ->and($result->costPrice)->toBe(0)

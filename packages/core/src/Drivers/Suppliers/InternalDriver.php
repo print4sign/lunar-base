@@ -72,8 +72,7 @@ class InternalDriver extends AbstractSupplierDriver
         return new PriceResponse(
             costPrice: 0,
             sellPrice: 0,
-            currency: 'EUR',
-            meta: ['internal' => true],
+            currency: config('lunar.default_currency', 'EUR'),
         );
     }
 
@@ -106,13 +105,16 @@ class InternalDriver extends AbstractSupplierDriver
         $externalId = sprintf(
             'INTERNAL-%s-%d',
             $order->reference,
-            $orderLine->id
+            $supplierOrder->order_line_id
         );
 
         return OrderResponse::success(
             externalId: $externalId,
             status: 'submitted',
-            data: ['internal_fulfillment' => true],
+            data: [
+                'type' => 'internal',
+                'submitted_at' => now()->toIso8601String(),
+            ],
         );
     }
 
@@ -124,7 +126,7 @@ class InternalDriver extends AbstractSupplierDriver
         return new StatusResponse(
             status: 'processing',
             externalId: $externalOrderId,
-            data: ['internal_fulfillment' => true],
+            data: ['type' => 'internal'],
         );
     }
 
@@ -155,7 +157,7 @@ class InternalDriver extends AbstractSupplierDriver
     /**
      * Get dynamic price - delegates to getPrice.
      */
-    public function getDynamicPrice(string $externalId, array $configuration): PriceResponse
+    public function getDynamicPrice(string $externalId, array $configuration, int $quantity): PriceResponse
     {
         return $this->getPrice($externalId, $configuration);
     }

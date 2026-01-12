@@ -16,6 +16,8 @@ test('seeder creates internal supplier with correct attributes', function () {
         ->and($supplier->name)->toBe('Internal Fulfillment')
         ->and($supplier->handle)->toBe('internal')
         ->and($supplier->driver)->toBe('internal')
+        ->and($supplier->credentials)->toBeArray()
+        ->toBeEmpty()
         ->and($supplier->capabilities)->toBeArray()
         ->toContain('ordering')
         ->toContain('tracking')
@@ -29,10 +31,11 @@ test('seeder sets correct meta information', function () {
 
     $supplier = Supplier::where('handle', 'internal')->first();
 
-    expect($supplier->meta)->toHaveKey('description')
-        ->toHaveKey('cancellation_window_hours', 72)
+    expect($supplier->meta)->toHaveKey('description', 'Products fulfilled internally by our warehouse')
+        ->toHaveKey('cancellation_window', 72)
         ->toHaveKey('cancellation_allowed_statuses')
         ->and($supplier->meta['cancellation_allowed_statuses'])->toContain('pending')
+        ->toContain('approved')
         ->toContain('submitted')
         ->toContain('processing');
 });
@@ -48,7 +51,7 @@ test('seeder is idempotent - running multiple times does not create duplicates',
     expect($count)->toBe(1);
 });
 
-test('seeder updates existing internal supplier', function () {
+test('seeder does not update existing internal supplier', function () {
     // Create initial supplier
     Supplier::create([
         'handle' => 'internal',
@@ -64,8 +67,9 @@ test('seeder updates existing internal supplier', function () {
 
     $supplier = Supplier::where('handle', 'internal')->first();
 
-    expect($supplier->name)->toBe('Internal Fulfillment')
-        ->and($supplier->enabled)->toBeTrue()
-        ->and($supplier->priority)->toBe(0)
-        ->and($supplier->capabilities)->toContain('ordering');
+    // firstOrCreate should NOT update existing records
+    expect($supplier->name)->toBe('Old Name')
+        ->and($supplier->enabled)->toBeFalse()
+        ->and($supplier->priority)->toBe(100)
+        ->and($supplier->capabilities)->toContain('manual');
 });

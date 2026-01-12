@@ -12,7 +12,7 @@ return [
     |
     */
 
-    'default' => env('LUNAR_SUPPLIER_DRIVER', 'internal'),
+    'default' => env('LUNAR_DEFAULT_SUPPLIER', 'internal'),
 
     /*
     |--------------------------------------------------------------------------
@@ -31,7 +31,8 @@ return [
         ],
         'probo' => [
             'class' => \Lunar\Drivers\Suppliers\ProboDriver::class,
-            'base_url' => env('PROBO_API_URL', 'https://api.proboprints.com/'),
+            'api_key' => env('PROBO_API_KEY'),
+            'sandbox' => env('PROBO_SANDBOX', false),
         ],
         'helloprint' => [
             'class' => \Lunar\Drivers\Suppliers\HelloprintDriver::class,
