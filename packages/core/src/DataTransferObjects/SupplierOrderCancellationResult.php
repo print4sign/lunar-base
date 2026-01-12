@@ -2,18 +2,20 @@
 
 namespace Lunar\DataTransferObjects;
 
+use Lunar\Models\Contracts\SupplierOrder;
+
 class SupplierOrderCancellationResult
 {
     public function __construct(
         public readonly bool $success,
-        public readonly $supplierOrder,
+        public readonly SupplierOrder $supplierOrder,
         public readonly bool $supplierCancelled = false,
         public readonly int $cancellationFee = 0,
-        public readonly $refund = null,
+        public readonly mixed $refund = null,
         public readonly ?string $error = null
     ) {}
 
-    public static function success($supplierOrder, bool $supplierCancelled, int $cancellationFee, $refund): self
+    public static function success(SupplierOrder $supplierOrder, bool $supplierCancelled, int $cancellationFee, mixed $refund): self
     {
         return new self(
             success: true,
@@ -24,7 +26,7 @@ class SupplierOrderCancellationResult
         );
     }
 
-    public static function failed(string $error, $supplierOrder): self
+    public static function failed(string $error, SupplierOrder $supplierOrder): self
     {
         return new self(
             success: false,

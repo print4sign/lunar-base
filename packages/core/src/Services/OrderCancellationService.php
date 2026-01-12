@@ -2,13 +2,13 @@
 
 namespace Lunar\Services;
 
+use Lunar\Base\LunarUser;
 use Lunar\DataTransferObjects\CancellationResult;
 use Lunar\DataTransferObjects\SupplierOrderCancellationResult;
 use Lunar\Events\SupplierOrderCancelled;
 use Lunar\Managers\SupplierManager;
 use Lunar\Models\Contracts\Order;
 use Lunar\Models\Contracts\SupplierOrder;
-use Lunar\Models\Contracts\User;
 
 class OrderCancellationService
 {
@@ -22,7 +22,7 @@ class OrderCancellationService
      */
     public function cancelOrder(
         Order $order,
-        User $user,
+        LunarUser $user,
         string $reason,
         bool $customerInitiated = false
     ): CancellationResult {
@@ -81,7 +81,7 @@ class OrderCancellationService
      */
     public function cancelSupplierOrder(
         SupplierOrder $supplierOrder,
-        User $user,
+        LunarUser $user,
         string $reason,
         bool $customerInitiated = false
     ): SupplierOrderCancellationResult {
@@ -114,7 +114,7 @@ class OrderCancellationService
 
         // Update supplier order
         $supplierOrder->update([
-            'status' => SupplierOrder::STATUS_CANCELLED,
+            'status' => \Lunar\Models\SupplierOrder::STATUS_CANCELLED,
             'cancelled_at' => now(),
             'cancelled_by' => $user->id,
             'cancellation_reason' => $reason,
