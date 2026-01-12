@@ -214,6 +214,15 @@ class HelloPrintDriver extends AbstractSupplierDriver implements ProvidesUploadS
         $orderLine = $supplierOrder->orderLine;
         $variant = $orderLine->purchasable;
         $order = $supplierOrder->order;
+
+        // Add validation
+        if (!$variant->supplierProduct) {
+            return OrderResponse::failed(
+                'Product variant has no supplier product configured',
+                ['variant_id' => $variant->id]
+            );
+        }
+
         $shippingAddress = $order->shippingAddress;
 
         $orderData = [
@@ -264,7 +273,7 @@ class HelloPrintDriver extends AbstractSupplierDriver implements ProvidesUploadS
             return null;
         }
 
-        return $printAsset->getTemporaryUrl(60);
+        return $printAsset->getTemporaryUrl(3600);
     }
 
     public function getOrderStatus(string $externalOrderId): StatusResponse

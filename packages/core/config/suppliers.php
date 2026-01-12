@@ -38,6 +38,7 @@ return [
         'printcom' => [
             'class' => \Lunar\Drivers\Suppliers\PrintComDriver::class,
             'api_key' => env('PRINTCOM_API_KEY'),
+            'sandbox' => env('PRINTCOM_SANDBOX', false),
         ],
         'offline' => [
             'class' => \Lunar\Drivers\Suppliers\OfflineDriver::class,

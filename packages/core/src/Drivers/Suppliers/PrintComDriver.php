@@ -215,9 +215,19 @@ class PrintComDriver extends AbstractSupplierDriver implements ProvidesUploadSpe
         $orderLine = $supplierOrder->orderLine;
         $variant = $orderLine->purchasable;
         $order = $supplierOrder->order;
+
+        // Add validation
+        if (!$variant->supplierProduct) {
+            return OrderResponse::failed(
+                'Product variant has no supplier product configured',
+                ['variant_id' => $variant->id]
+            );
+        }
+
         $shippingAddress = $order->shippingAddress;
 
         $orderData = [
+            'mode' => $this->getConfig('sandbox', false) ? 'test' : 'live',
             'reference' => $order->reference . '-' . $orderLine->id,
             'items' => [
                 [
@@ -267,7 +277,7 @@ class PrintComDriver extends AbstractSupplierDriver implements ProvidesUploadSpe
             return null;
         }
 
-        return $printAsset->getTemporaryUrl(60);
+        return $printAsset->getTemporaryUrl(3600);
     }
 
     public function getOrderStatus(string $externalOrderId): StatusResponse

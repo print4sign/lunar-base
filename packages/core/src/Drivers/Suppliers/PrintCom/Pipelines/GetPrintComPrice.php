@@ -35,12 +35,15 @@ class GetPrintComPrice
             );
 
             $cartLine->unit_price = $priceResponse->sellPrice;
-            $cartLine->meta['supplier_pricing'] = [
+
+            $meta = $cartLine->meta ?? [];
+            $meta['supplier_pricing'] = [
                 'cost_price' => $priceResponse->costPrice,
                 'sell_price' => $priceResponse->sellPrice,
                 'currency' => $priceResponse->currency,
                 'fetched_at' => now()->toIso8601String(),
             ];
+            $cartLine->meta = $meta;
 
         } catch (\Exception $e) {
             \Log::error('Failed to get print.com price', [

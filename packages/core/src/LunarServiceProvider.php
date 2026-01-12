@@ -112,6 +112,7 @@ class LunarServiceProvider extends ServiceProvider
         'cart_session',
         'database',
         'discounts',
+        'inspirations',
         'media',
         'orders',
         'payments',
@@ -260,11 +261,33 @@ class LunarServiceProvider extends ServiceProvider
                 SyncNewCustomerOrders::class,
                 PruneCarts::class,
                 \Lunar\Console\Commands\SyncSupplierProducts::class,
+                \Lunar\Console\Commands\CheckSupplierProductUpdates::class,
+                \Lunar\Console\Commands\SendInspirationRequests::class,
+                \Lunar\Console\Commands\SeedInternalSupplier::class,
             ]);
 
             if (config('lunar.cart.prune_tables.enabled', false)) {
                 $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
                     $schedule->command('lunar:prune:carts')->daily();
+                });
+            }
+
+            // Schedule supplier product update checks daily
+            $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+                $schedule->command('lunar:supplier:check-updates', ['--all'])
+                    ->daily()
+                    ->withoutOverlapping()
+                    ->runInBackground();
+            });
+
+            // Schedule inspiration request emails
+            if (config('lunar.inspirations.auto_request.enabled', true)) {
+                $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+                    $days = config('lunar.inspirations.auto_request.days_after_delivery', 14);
+                    $schedule->command("lunar:send-inspiration-requests --days={$days}")
+                        ->daily()
+                        ->at('10:00')
+                        ->withoutOverlapping();
                 });
             }
         }
@@ -292,6 +315,71 @@ class LunarServiceProvider extends ServiceProvider
 
         // Register Probo shipping modifier
         app(ShippingModifiers::class)->add(ProboShippingModifier::class);
+
+        // Register supplier cart line pipelines
+        $this->registerSupplierPipelines();
+    }
+
+    /**
+     * Register cart line pipelines from enabled suppliers.
+     *
+     * This collects pipelines from all enabled supplier drivers and prepends
+     * them to the cart_lines pipeline configuration. Supplier pipelines run
+     * before GetUnitPrice to set pricing from supplier APIs.
+     */
+    protected function registerSupplierPipelines(): void
+    {
+        // Defer to after the application is booted to ensure models are available
+        $this->app->booted(function () {
+            try {
+                // Get all enabled suppliers
+                $suppliers = \Lunar\Models\Supplier::where('enabled', true)->get();
+
+                if ($suppliers->isEmpty()) {
+                    return;
+                }
+
+                $supplierManager = app(SupplierManagerInterface::class);
+                $supplierPipelines = [];
+
+                foreach ($suppliers as $supplier) {
+                    try {
+                        $driver = $supplierManager->driver($supplier->driver);
+                        $driver->setSupplier($supplier);
+                        $pipelines = $driver->getCartLinePipelines();
+
+                        foreach ($pipelines as $pipeline) {
+                            // Avoid duplicates
+                            if (! in_array($pipeline, $supplierPipelines)) {
+                                $supplierPipelines[] = $pipeline;
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // Skip suppliers with invalid drivers
+                        continue;
+                    }
+                }
+
+                if (empty($supplierPipelines)) {
+                    return;
+                }
+
+                // Get current cart_lines pipelines
+                $existingPipelines = config('lunar.cart.pipelines.cart_lines', []);
+
+                // Remove the old generic GetSupplierPrice if present (it's replaced by driver-specific pipelines)
+                $existingPipelines = array_filter($existingPipelines, function ($pipeline) {
+                    return $pipeline !== \Lunar\Pipelines\CartLine\GetSupplierPrice::class;
+                });
+
+                // Prepend supplier pipelines (they should run before GetUnitPrice)
+                $newPipelines = array_merge($supplierPipelines, array_values($existingPipelines));
+
+                config(['lunar.cart.pipelines.cart_lines' => $newPipelines]);
+            } catch (\Exception $e) {
+                // Silently fail during migrations or when database isn't available
+            }
+        });
     }
 
     protected function registerAddonManifest()
