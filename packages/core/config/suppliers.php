@@ -31,8 +31,9 @@ return [
             'base_url' => env('PROBO_API_URL', 'https://api.proboprints.com/'),
         ],
         'helloprint' => [
-            'class' => \Lunar\Drivers\Suppliers\HelloprintDriver::class,
-            'base_url' => env('HELLOPRINT_API_URL', 'https://api.helloprint.com/'),
+            'class' => \Lunar\Drivers\Suppliers\HelloPrintDriver::class,
+            'api_key' => env('HELLOPRINT_API_KEY'),
+            'sandbox' => env('HELLOPRINT_SANDBOX', false),
         ],
         'offline' => [
             'class' => \Lunar\Drivers\Suppliers\OfflineDriver::class,
