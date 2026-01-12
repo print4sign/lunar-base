@@ -35,6 +35,10 @@ return [
             'api_key' => env('HELLOPRINT_API_KEY'),
             'sandbox' => env('HELLOPRINT_SANDBOX', false),
         ],
+        'printcom' => [
+            'class' => \Lunar\Drivers\Suppliers\PrintComDriver::class,
+            'api_key' => env('PRINTCOM_API_KEY'),
+        ],
         'offline' => [
             'class' => \Lunar\Drivers\Suppliers\OfflineDriver::class,
         ],
