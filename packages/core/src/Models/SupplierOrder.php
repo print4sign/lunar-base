@@ -8,6 +8,7 @@ use Lunar\Base\BaseModel;
 use Lunar\Base\Casts\Price as PriceCast;
 use Lunar\Base\Traits\HasMacros;
 use Lunar\Base\Traits\LogsActivity;
+use Lunar\Database\Factories\SupplierOrderFactory;
 
 /**
  * @property int $id
@@ -31,6 +32,14 @@ class SupplierOrder extends BaseModel implements Contracts\SupplierOrder
     use HasFactory;
     use HasMacros;
     use LogsActivity;
+
+    /**
+     * Return a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return SupplierOrderFactory::new();
+    }
 
     /**
      * Status constants.

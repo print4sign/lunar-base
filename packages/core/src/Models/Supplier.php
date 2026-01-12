@@ -34,6 +34,14 @@ class Supplier extends BaseModel implements Contracts\Supplier
     use SoftDeletes;
 
     /**
+     * Return a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return SupplierFactory::new();
+    }
+
+    /**
      * {@inheritDoc}
      */
     protected $guarded = [];
