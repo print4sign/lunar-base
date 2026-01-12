@@ -123,3 +123,29 @@ test('supplier_orders extension migration can rollback', function () {
         '--realpath' => $migrationFile,
     ]);
 });
+
+test('user foreign keys have nullOnDelete constraint', function () {
+    // Get the foreign key definitions for the supplier_orders table using Schema::getForeignKeys
+    $foreignKeys = collect(Schema::getForeignKeys(prefix_table('supplier_orders')));
+
+    // Check that cancellation_requested_by has nullOnDelete (SET NULL)
+    $cancellationRequestedByFk = $foreignKeys->first(fn ($fk) =>
+        in_array('cancellation_requested_by', $fk['columns'])
+    );
+    expect($cancellationRequestedByFk)->not->toBeNull();
+    expect($cancellationRequestedByFk['on_delete'])->toBe('set null');
+
+    // Check that cancelled_by has nullOnDelete (SET NULL)
+    $cancelledByFk = $foreignKeys->first(fn ($fk) =>
+        in_array('cancelled_by', $fk['columns'])
+    );
+    expect($cancelledByFk)->not->toBeNull();
+    expect($cancelledByFk['on_delete'])->toBe('set null');
+
+    // Check that approved_by has nullOnDelete (SET NULL)
+    $approvedByFk = $foreignKeys->first(fn ($fk) =>
+        in_array('approved_by', $fk['columns'])
+    );
+    expect($approvedByFk)->not->toBeNull();
+    expect($approvedByFk['on_delete'])->toBe('set null');
+});

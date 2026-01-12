@@ -13,10 +13,10 @@ return new class extends Migration
             $table->boolean('cancellable')->default(true)->after('status');
             $table->timestamp('cancellation_deadline')->nullable()->after('cancellable');
             $table->timestamp('cancellation_requested_at')->nullable()->after('cancellation_deadline');
-            $table->foreignId('cancellation_requested_by')->nullable()->constrained('users')->after('cancellation_requested_at');
+            $table->foreignId('cancellation_requested_by')->nullable()->constrained('users')->nullOnDelete()->after('cancellation_requested_at');
             $table->text('cancellation_reason')->nullable()->after('cancellation_requested_by');
             $table->timestamp('cancelled_at')->nullable()->after('cancellation_reason');
-            $table->foreignId('cancelled_by')->nullable()->constrained('users')->after('cancelled_at');
+            $table->foreignId('cancelled_by')->nullable()->constrained('users')->nullOnDelete()->after('cancelled_at');
             $table->unsignedBigInteger('cancellation_fee')->nullable()->comment('In cents')->after('cancelled_by');
 
             // Cost tracking fields
@@ -39,7 +39,7 @@ return new class extends Migration
 
             // Approval workflow fields
             $table->boolean('requires_approval')->default(true)->after('refund_reason');
-            $table->foreignId('approved_by')->nullable()->constrained('users')->after('requires_approval');
+            $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete()->after('requires_approval');
             $table->timestamp('approved_at')->nullable()->after('approved_by');
             $table->text('approval_notes')->nullable()->after('approved_at');
             $table->text('rejected_reason')->nullable()->after('approval_notes');
