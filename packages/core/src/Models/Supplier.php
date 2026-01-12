@@ -57,14 +57,6 @@ class Supplier extends BaseModel implements Contracts\Supplier
     ];
 
     /**
-     * Create a new factory instance for the model.
-     */
-    protected static function newFactory()
-    {
-        return SupplierFactory::new();
-    }
-
-    /**
      * Return the supplier products relationship.
      */
     public function products(): HasMany

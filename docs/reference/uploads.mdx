@@ -1,0 +1,420 @@
+---
+title: Print File Uploads
+description: Managing print file uploads for products that require customer artwork
+---
+
+# Print File Uploads
+
+Lunar supports print file uploads for products that require customer-provided artwork.
+This is commonly used for print-on-demand products like banners, business cards, and signage.
+
+## Overview
+
+The upload system supports:
+- **Upload specifications** defined per product variant or dynamically from supplier APIs
+- **Two upload methods**: Custom uploader (local storage) or Probo hosted uploader
+- **Flexible timing**: Upload before checkout or "Deliver Later" option (+€15 surcharge)
+- **Validation**: File size, dimensions, DPI, and format checking
+
+## Upload Specifications
+
+Upload requirements are defined using the `UploadSpec` data transfer object:
+
+```php
+use Lunar\Base\DataTransferObjects\Upload\UploadSpec;
+use Lunar\Base\DataTransferObjects\Upload\UploaderRequirement;
+
+// Create an upload spec
+$spec = new UploadSpec(
+    upload: true,
+    uploaders: collect([
+        new UploaderRequirement(
+            type: 'frontback',     // single, frontback, multipage, custom
+            amount: 2,              // Number of files required
+            width: 210,             // Width in mm
+            height: 297,            // Height in mm
+            minimalDpi: 150,        // Minimum recommended DPI
+            fileLimit: 500,         // Max file size in MB
+        ),
+    ]),
+    source: UploadSpec::SOURCE_STATIC,
+);
+```
+
+### Uploader Types
+
+| Type | Description | Files Required |
+|------|-------------|----------------|
+| `single` | Single file upload | 1 |
+| `frontback` | Front and back (double-sided) | 2 |
+| `multipage` | Multiple pages (e.g., booklet) | Variable |
+| `custom` | Custom configuration | Variable |
+
+## Resolution Chain
+
+Upload specs are resolved in the following order:
+
+1. **Cart/Order Line Meta** - Dynamic spec stored during configuration
+2. **Product Variant** - Static spec defined on the variant
+3. **Supplier API** - Fetched from supplier (e.g., Probo) if driver implements `ProvidesUploadSpec`
+
+```php
+// Resolve upload spec for a cart line
+$spec = $cartLine->resolveUploadSpec();
+
+// Check if uploads are required
+if ($cartLine->requiresUpload()) {
+    // Handle upload flow
+}
+
+// Check if all required files are uploaded
+if ($cartLine->hasAllRequiredPrintAssets()) {
+    // Ready for checkout
+}
+```
+
+## PrintAsset Model
+
+Uploaded files are stored as `PrintAsset` records:
+
+```php
+use Lunar\Models\PrintAsset;
+
+// Get print assets for a cart line
+$assets = $cartLine->printAssets;
+
+// Get assets for a specific uploader slot
+$frontAssets = $cartLine->getPrintAssetsForUploader(0);
+
+// Access file information
+$asset->original_filename;  // Original file name
+$asset->mime_type;          // e.g., 'image/jpeg'
+$asset->size;               // File size in bytes
+$asset->width;              // Image width in pixels
+$asset->height;             // Image height in pixels
+$asset->dpi;                // Estimated DPI
+
+// Get file URLs
+$asset->getUrl();                    // Permanent URL
+$asset->getTemporaryUrl(60);         // Signed URL valid for 60 minutes
+```
+
+## PrintAssetService
+
+Use the service for uploading and managing files:
+
+```php
+use Lunar\Services\PrintAssetService;
+
+$service = app(PrintAssetService::class);
+
+// Upload a file for a cart line
+$asset = $service->uploadForCartLine(
+    cartLine: $cartLine,
+    file: $uploadedFile,
+    uploaderIndex: 0,
+    fileIndex: 0
+);
+
+// Validate and upload multiple files
+$result = $service->validateAndUpload($cartLine, $spec, $files);
+if ($result->failed()) {
+    // Handle validation errors
+    $errors = $result->getErrorMessages();
+}
+
+// Copy assets from cart to order line
+$orderAssets = $service->copyToOrderLine($cartLine, $orderLine);
+
+// Generate public URLs for supplier submission
+$urls = $service->generatePublicUrls($cartLine->printAssets, validMinutes: 120);
+```
+
+## Validation
+
+The `UploadSpecValidator` validates files against specifications:
+
+```php
+use Lunar\Services\UploadSpecValidator;
+
+$validator = app(UploadSpecValidator::class);
+
+// Validate uploaded files
+$result = $validator->validate($spec, $files);
+
+if ($result->valid) {
+    // All files are valid
+} else {
+    foreach ($result->errors as $error) {
+        // Handle error
+    }
+    foreach ($result->warnings as $warning) {
+        // Handle warning (e.g., low DPI)
+    }
+}
+
+// Check if cart line has all required files
+$completeness = $validator->validateCompleteness($spec, $cartLine->printAssets);
+```
+
+## Probo Uploader Integration
+
+For Probo-integrated products, you can use their hosted uploader:
+
+```php
+use Lunar\Services\ProboUploaderService;
+
+$service = app(ProboUploaderService::class);
+
+// Create an uploader session
+$session = $service->createSessionForCartLine($cartLine);
+// Returns: ['id' => '123', 'url' => 'https://upload.probo...', 'expires_at' => '...']
+
+// Store session in cart line meta
+$service->storeSessionInCartLine($cartLine, $session['id']);
+
+// Check session status
+$complete = $service->areAllSessionsComplete($cartLine);
+
+// Get uploader data for order submission
+$uploaderData = $service->getUploaderDataForOrder($cartLine);
+```
+
+## Deliver Later Option
+
+Allow customers to place orders without files and upload later:
+
+```php
+use Lunar\Services\DeliverLaterService;
+
+$service = app(DeliverLaterService::class);
+
+// Mark cart line for deliver-later (adds €15 surcharge)
+$service->markForDeliverLater($cartLine);
+$service->addSurchargeToCart($cart, $cartLine);
+
+// After order creation, generate upload token
+$token = $service->generateUploadToken($orderLine);
+
+// Send email with upload link
+$service->sendUploadLinkEmail($orderLine);
+
+// Validate token from URL
+$orderLine = $service->validateToken($token);
+
+// Mark uploads as complete
+$service->markUploadsComplete($orderLine);
+```
+
+## Checkout Integration
+
+The checkout flow integrates uploads via Livewire components:
+
+### CheckoutUploadModal
+
+Parent component that provides tabbed interface for upload methods:
+
+```blade
+<livewire:components.checkout-upload-modal />
+```
+
+Dispatch event to open the modal:
+
+```php
+$this->dispatch('open-upload-modal', cartLineId: $line->id);
+```
+
+### CustomFileUploader
+
+Component for drag-drop file uploads with validation:
+
+```blade
+<livewire:components.custom-file-uploader
+    :cart-line-id="$cartLineId"
+    :uploader-index="0"
+    :uploader-requirement="$uploaderRequirement"
+/>
+```
+
+### ProboUploaderIntegration
+
+Component for Probo hosted uploader integration:
+
+```blade
+<livewire:components.probo-uploader-integration
+    :cart-line-id="$cartLineId"
+/>
+```
+
+## Post-Order Upload Page
+
+For deliver-later orders, customers receive an email with a secure upload link:
+
+- Route: `/{locale}/upload/{token}`
+- Component: `PostOrderUploadPage`
+- Token validity: 7 days (configurable)
+
+## Webhook Integration
+
+Probo sends callbacks when uploader sessions are completed:
+
+- Route: `POST /webhooks/probo/uploader`
+- Controller: `ProboWebhookController`
+
+Configure the callback URL when creating uploader sessions.
+
+## Configuration
+
+Configure upload settings in `config/lunar/cart.php`:
+
+```php
+'print_assets' => [
+    // Storage disk for uploaded files
+    'disk' => env('LUNAR_PRINT_ASSETS_DISK', 'local'),
+
+    // Storage directory
+    'directory' => 'print-assets',
+
+    // Auto-delete files when record is deleted
+    'delete_files_on_delete' => true,
+
+    // Default max file size in MB
+    'default_file_limit' => 500,
+
+    // Allowed MIME types
+    'allowed_mime_types' => [
+        'image/jpeg',
+        'image/png',
+        'image/tiff',
+        'application/pdf',
+    ],
+
+    // Enable Probo hosted uploader option
+    'probo_uploader_enabled' => true,
+
+    // Enable deliver-later option
+    'deliver_later_enabled' => true,
+
+    // Deliver-later surcharge in cents (€15.00)
+    'deliver_later_surcharge' => 1500,
+
+    // Upload token validity in days
+    'upload_token_validity_days' => 7,
+],
+```
+
+## Events
+
+The upload system dispatches these events:
+
+| Event | When | Payload |
+|-------|------|---------|
+| `PrintFileUploaded` | File uploaded | cartLine, printAsset, uploaderIndex, fileIndex |
+| `PrintFilesValidated` | Validation complete | cartLine, validationResult |
+| `PrintAssetReady` | Assets copied to order | orderLine, printAssets |
+
+```php
+use Lunar\Events\Upload\PrintFileUploaded;
+
+class HandlePrintFileUpload
+{
+    public function handle(PrintFileUploaded $event): void
+    {
+        $asset = $event->printAsset;
+        $cartLine = $event->cartLine;
+
+        // Custom processing...
+    }
+}
+```
+
+## Order Validation
+
+The `ValidateUploadsForOrderCreation` validator ensures all cart lines have complete uploads:
+
+```php
+// In config/lunar/cart.php
+'validators' => [
+    'order_create' => [
+        \Lunar\Validation\Cart\ValidateCartForOrderCreation::class,
+        \Lunar\Validation\Cart\ValidateUploadsForOrderCreation::class,
+    ],
+],
+```
+
+This validator checks:
+- All cart lines with upload requirements have files uploaded
+- OR are marked as "deliver later"
+
+## Supplier Integration
+
+To provide dynamic upload specs from a supplier, implement `ProvidesUploadSpec`:
+
+```php
+use Lunar\Base\Contracts\ProvidesUploadSpec;
+use Lunar\Base\DataTransferObjects\Upload\UploadSpec;
+
+class MySupplierDriver implements ProvidesUploadSpec
+{
+    public function resolveUploadSpec(string $externalId, array $configuration): ?UploadSpec
+    {
+        // Fetch upload requirements from supplier API
+        $response = $this->api->getUploadRequirements($externalId, $configuration);
+
+        return UploadSpec::fromArray([
+            'upload' => true,
+            'uploaders' => $response['uploaders'],
+            'source' => 'supplier:my-supplier',
+        ]);
+    }
+
+    public function requiresUpload(string $externalId, array $configuration): bool
+    {
+        return $this->resolveUploadSpec($externalId, $configuration)?->requiresUpload() ?? false;
+    }
+}
+```
+
+## Serving Files to Suppliers
+
+When submitting orders to suppliers like Probo, files must be publicly accessible:
+
+```php
+// Generate temporary signed URLs for order submission
+$files = $printAssetService->generatePublicUrls($orderLine->printAssets, validMinutes: 120);
+
+// Result format for Probo API:
+// [
+//     ['uri' => 'https://example.com/signed-url...', 'uploader_index' => 0, 'file_index' => 0],
+//     ['uri' => 'https://example.com/signed-url...', 'uploader_index' => 0, 'file_index' => 1],
+// ]
+
+// Or use the Probo-specific format
+$proboFiles = $printAssetService->generateProboFileUrls($orderLine->printAssets);
+// Includes side: 'front'/'back' for frontback uploads
+```
+
+**Important**: Set URL expiration generously (at least 120 minutes) to allow time for supplier preflight processing.
+
+## Database Migrations
+
+The upload system requires these migrations:
+
+1. `add_upload_spec_to_product_variants_table` - Static upload specs on variants
+2. `create_print_assets_table` - File storage records
+3. `add_uploader_session_fields_to_print_assets_table` - Probo session tracking
+4. `add_upload_delivery_fields_to_order_lines_table` - Deliver-later tracking
+
+Run migrations after installing:
+
+```bash
+php artisan migrate
+```
+
+## Best Practices
+
+1. **Storage**: Use S3 or similar cloud storage for production to enable signed URLs
+2. **Validation**: Always validate files before accepting uploads
+3. **Expiration**: Set reasonable token expiration for security
+4. **Monitoring**: Log upload events for debugging
+5. **Cleanup**: Configure automatic file deletion when records are removed

@@ -1,0 +1,52 @@
+@reference "./app.css";
+
+.online-designer {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.online-designer canvas {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    border-radius: 4px;
+}
+
+.online-designer input[type="color"] {
+    -webkit-appearance: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.online-designer input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 2px;
+}
+
+.online-designer input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+}
+
+.online-designer input[type="range"] {
+    height: 0.5rem;
+    background-color: #e5e7eb;
+    border-radius: 0.5rem;
+    appearance: none;
+    cursor: pointer;
+}
+
+.online-designer input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    background-color: var(--color-primary-600, #2563eb);
+    border-radius: 9999px;
+    cursor: pointer;
+}
+
+.online-designer input[type="range"]::-moz-range-thumb {
+    width: 1rem;
+    height: 1rem;
+    background-color: var(--color-primary-600, #2563eb);
+    border-radius: 9999px;
+    cursor: pointer;
+    border: 0;
+}

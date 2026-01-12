@@ -1,0 +1,22 @@
+<?php
+
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Lunar\Base\Migration;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table($this->prefix.'product_variants', function (Blueprint $table) {
+            $table->json('upload_spec')->nullable()->after('configuration');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table($this->prefix.'product_variants', function (Blueprint $table) {
+            $table->dropColumn('upload_spec');
+        });
+    }
+};

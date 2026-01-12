@@ -96,4 +96,9 @@ class OrderLine extends BaseModel implements Contracts\OrderLine
             'currency_code'
         );
     }
+
+    public function printAssets()
+    {
+        return $this->hasMany(PrintAsset::modelClass());
+    }
 }

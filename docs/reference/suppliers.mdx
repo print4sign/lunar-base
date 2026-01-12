@@ -1,0 +1,307 @@
+---
+title: Suppliers
+description: Managing external suppliers and product lifecycle
+---
+
+# Suppliers
+
+Lunar provides a robust supplier integration system that allows you to connect with external product suppliers like Probo. This includes catalog synchronization, product configuration, pricing, and order management.
+
+## Supplier Products
+
+Supplier products represent products from an external supplier that can be linked to your Lunar product variants.
+
+### Product Lifecycle Tracking
+
+Supplier products can be discontinued or replaced by the supplier. Lunar automatically tracks these lifecycle changes:
+
+- **Active Status** (`active`): Whether the product is currently available from the supplier
+- **Active Until** (`active_to`): The date until which the product will remain active
+- **Replacement** (`replaced_by_product`): The external ID of a replacement product
+
+### Automatic Update Checking
+
+Lunar includes a scheduled command that runs daily to check for product updates:
+
+```bash
+php artisan lunar:supplier:check-updates --all
+```
+
+This command:
+1. Fetches all products from the supplier API
+2. Updates the `active`, `active_to`, and `replaced_by_external_id` fields
+3. Handles discontinued products by setting linked variants to `purchasable='discontinued'`
+4. Automatically links to replacement products and migrates variants
+
+### Manual Commands
+
+Check updates for a specific supplier:
+
+```bash
+php artisan lunar:supplier:check-updates probo
+```
+
+Run synchronously instead of queuing:
+
+```bash
+php artisan lunar:supplier:check-updates --all --sync
+```
+
+## Handling Discontinued Products
+
+When a supplier product is discontinued (`active=false`), Lunar will:
+
+1. Mark the `SupplierProduct` as inactive
+2. Set all linked `ProductVariant` records to `purchasable='discontinued'`
+3. Log the change for audit purposes
+
+### Product Variants
+
+Variants with `purchasable='discontinued'` will not be available for purchase. You can query discontinued variants:
+
+```php
+use Lunar\Models\ProductVariant;
+
+// Get all discontinued variants
+$discontinued = ProductVariant::discontinued()->get();
+
+// Check if a variant is discontinued
+if ($variant->isDiscontinued()) {
+    // Handle discontinued variant
+}
+```
+
+## Handling Product Replacements
+
+When a supplier indicates a product has been replaced (`replaced_by_product`), Lunar will:
+
+1. Find or create the replacement `SupplierProduct`
+2. Link the old product to the replacement via `replaced_by_id`
+3. Automatically migrate linked variants to use the replacement product
+
+### Querying Replacements
+
+```php
+use Lunar\Models\SupplierProduct;
+
+// Get products with replacements
+$replaced = SupplierProduct::hasReplacement()->get();
+
+// Get the replacement product
+$replacement = $supplierProduct->replacedBy;
+
+// Get products that this product replaces
+$replaces = $supplierProduct->replaces;
+```
+
+## Approaching Discontinuation
+
+Products with an `active_to` date in the near future can be queried:
+
+```php
+use Lunar\Models\SupplierProduct;
+
+// Products expiring within 30 days
+$expiring = SupplierProduct::approachingDiscontinuation(30)->get();
+
+// Check if a product is approaching discontinuation
+if ($supplierProduct->isApproachingDiscontinuation()) {
+    // Send notification or take action
+}
+```
+
+## Admin Interface
+
+### Supplier Products Overview
+
+Navigate to **Settings > Supplier Products** in the admin panel to:
+
+- View all supplier products with their lifecycle status
+- Filter by supplier, active status, or discontinued products
+- See products approaching discontinuation
+- Manually sync individual products
+
+### Discontinued Products Widget
+
+Add the `DiscontinuedProductsTable` widget to your dashboard to see:
+
+- Currently discontinued products
+- Products approaching discontinuation
+- Available replacements
+- Linked variant counts
+
+```php
+use Lunar\Admin\Filament\Widgets\Suppliers\DiscontinuedProductsTable;
+
+// Register in your panel provider
+->widgets([
+    DiscontinuedProductsTable::class,
+])
+```
+
+## Configuration
+
+The supplier update check is scheduled daily by default. You can customize this in your `app/Console/Kernel.php` by overriding the schedule:
+
+```php
+protected function schedule(Schedule $schedule)
+{
+    // Run every 6 hours instead of daily
+    $schedule->command('lunar:supplier:check-updates', ['--all'])
+        ->everySixHours()
+        ->withoutOverlapping();
+}
+```
+
+## Events and Notifications
+
+You can listen for supplier product updates by observing the `SupplierProduct` model:
+
+```php
+use Lunar\Models\SupplierProduct;
+
+SupplierProduct::updated(function ($supplierProduct) {
+    if ($supplierProduct->wasChanged('active') && !$supplierProduct->active) {
+        // Product was just discontinued
+        // Send notification to admin
+    }
+});
+```
+
+## Dynamic Products
+
+Dynamic products are supplier-backed variants that fetch pricing, inventory, and shipping information in real-time from the supplier API instead of using stored values.
+
+### Enabling Dynamic Mode
+
+When a variant is linked to a supplier product, you can enable dynamic mode in the Fulfillment page. This is useful for print-on-demand or configurable products where the customer configures the product on your storefront.
+
+### How It Works
+
+1. **Admin**: When dynamic mode is enabled, the Pricing, Inventory, and Shipping pages are hidden (controlled by the supplier driver)
+2. **Storefront**: The customer sees a configurator component to select dimensions, options, etc.
+3. **Cart**: Configuration is stored in the cart line meta
+4. **Checkout**: Pricing is fetched from the supplier API based on the stored configuration
+
+### Querying Dynamic Variants
+
+```php
+use Lunar\Models\ProductVariant;
+
+// Get all dynamic variants
+$dynamic = ProductVariant::dynamic()->get();
+
+// Check if a variant is dynamic
+if ($variant->isDynamic()) {
+    // Handle dynamic variant - show configurator
+}
+```
+
+### Customizing Hidden Sections
+
+Each supplier driver can define which admin sections are hidden for dynamic products:
+
+```php
+// In your custom supplier driver
+public function getHiddenSectionsForDynamic(): array
+{
+    return [
+        self::SECTION_PRICING,
+        self::SECTION_INVENTORY,
+        self::SECTION_SHIPPING,
+    ];
+}
+```
+
+Available section constants:
+- `SECTION_PRICING` - Hide pricing management
+- `SECTION_INVENTORY` - Hide stock/inventory management
+- `SECTION_SHIPPING` - Hide shipping/dimensions management
+- `SECTION_VARIANTS` - Hide variants management
+
+### Providing a Configurator Component
+
+Each supplier driver can provide a Livewire configurator component for the storefront:
+
+```php
+// In your custom supplier driver
+public function getConfiguratorComponent(): ?string
+{
+    return \App\Livewire\Components\MyConfigurator::class;
+}
+```
+
+The configurator component should:
+1. Accept `supplierProductId` and `productVariantId` as parameters
+2. Provide a way to configure the product options
+3. Add the product to cart with the configuration stored in meta:
+
+```php
+$cart->add($variant, $quantity, [
+    'supplier_configuration' => $configuration,
+    'supplier_product_id' => $supplierProductId,
+    'is_dynamic' => true,
+    'configuration_display' => $displayableConfiguration,
+]);
+```
+
+### Upload Specifications from Suppliers
+
+Supplier drivers can implement the `ProvidesUploadSpec` interface to dynamically resolve upload requirements based on the customer's product configuration:
+
+```php
+use Lunar\Base\Contracts\ProvidesUploadSpec;
+use Lunar\Base\DataTransferObjects\Upload\UploadSpec;
+
+class CustomSupplierDriver extends AbstractSupplierDriver implements ProvidesUploadSpec
+{
+    public function resolveUploadSpec(string $externalId, array $configuration): ?UploadSpec
+    {
+        $response = $this->configure($externalId, $configuration);
+
+        if (!$response->meta['upload']) {
+            return null;
+        }
+
+        return UploadSpec::fromArray([
+            'upload' => true,
+            'uploaders' => $response->meta['uploaders'],
+            'source' => UploadSpec::SOURCE_SUPPLIER . ':custom',
+        ]);
+    }
+
+    public function requiresUpload(string $externalId, array $configuration): bool
+    {
+        return $this->resolveUploadSpec($externalId, $configuration)?->requiresUpload() ?? false;
+    }
+}
+```
+
+The Probo driver implements this interface automatically, extracting upload specifications from the `/products/configure` response.
+
+For more details on upload specifications, see the [Upload Specifications Reference](/1.x/reference/upload-specs).
+
+### Cart Line Pricing for Dynamic Products
+
+The `GetSupplierPrice` cart pipeline automatically handles dynamic products. When a cart line has `is_dynamic => true` in its meta, the pipeline will:
+
+1. Retrieve the `supplier_configuration` from the cart line meta
+2. Call the supplier driver to fetch real-time pricing
+3. Update the cart line's unit price accordingly
+
+## Database Schema
+
+The supplier products table includes these lifecycle fields:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `active` | boolean | Whether the product is currently active |
+| `active_to` | timestamp | Date until the product is active |
+| `replaced_by_external_id` | string | External ID of the replacement product |
+| `replaced_by_id` | foreignId | FK to the replacement SupplierProduct |
+
+The product variants table includes:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `is_dynamic` | boolean | Whether the variant uses dynamic pricing from supplier |

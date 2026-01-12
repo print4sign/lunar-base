@@ -1,0 +1,35 @@
+{
+    "name": "lunarphp/scraper",
+    "type": "project",
+    "description": "Playwright-based website scraper for Lunar.",
+    "keywords": ["lunarphp", "laravel", "ecommerce", "scraper", "playwright"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Lunar",
+            "homepage": "https://lunarphp.io/"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "lunarphp/core": "self.version",
+        "symfony/process": "^6.0|^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Lunar\\Scraper\\": "src/"
+        }
+    },
+    "extra": {
+        "lunar": {
+            "name": "Website Scraper"
+        },
+        "laravel": {
+            "providers": [
+                "Lunar\\Scraper\\ScraperServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

@@ -1,0 +1,465 @@
+---
+title: Upload Specifications
+description: Managing print file upload requirements for customizable products
+---
+
+# Upload Specifications
+
+Upload Specifications define what print files customers need to provide when ordering customizable products. This is essential for print-on-demand products where customers upload artwork, photos, or designs.
+
+The system supports:
+- **Static specs** - Configured on product variants via the admin panel
+- **Dynamic specs** - Computed from supplier APIs (e.g., Probo) based on product configuration
+- **Validation** - File size, DPI, dimensions, and aspect ratio checks
+- **Resolution chain** - CartLine meta → Variant → Supplier API
+
+## Data Structure
+
+Upload specifications follow a JSON structure that matches Probo's format for seamless integration:
+
+```json
+{
+  "upload": true,
+  "uploaders": [
+    {
+      "type": "single",
+      "amount": 1,
+      "width": 90,
+      "height": 55,
+      "length": null,
+      "minimal_dpi": 300,
+      "file_limit": 500,
+      "mirror_enabled": false,
+      "fill_enabled": true,
+      "rotation_enabled": true,
+      "require_white_spot": false,
+      "required_cut_names": [],
+      "optional_cut_names": [],
+      "tiling_enabled": false,
+      "tiling_mandatory": false,
+      "tiling_direction": null,
+      "max_width_excl_overlap": null,
+      "max_height_excl_overlap": null,
+      "max_width_incl_overlap": null,
+      "max_height_incl_overlap": null,
+      "bleed_top": 3,
+      "bleed_right": 3,
+      "bleed_bottom": 3,
+      "bleed_left": 3
+    }
+  ],
+  "version": 1,
+  "source": "static"
+}
+```
+
+### Uploader Types
+
+| Type | Description |
+|:-----|:------------|
+| `single` | Single file upload |
+| `frontback` | Front and back (always requires 2 files) |
+| `multipage` | Multiple pages (amount specifies how many) |
+| `custom` | Custom upload configuration |
+
+### Source Types
+
+| Source | Description |
+|:-------|:------------|
+| `static` | Manually configured on the variant |
+| `dynamic` | Set during cart line creation (from configurator) |
+| `supplier:probo` | Fetched from Probo supplier API |
+
+## Working with Upload Specs
+
+### On Product Variants
+
+Product variants have an `upload_spec` column that stores the specification as JSON:
+
+```php
+use Lunar\Base\DataTransferObjects\Upload\UploadSpec;
+use Lunar\Base\DataTransferObjects\Upload\UploaderRequirement;
+
+// Create an upload spec
+$spec = UploadSpec::fromArray([
+    'upload' => true,
+    'uploaders' => [
+        [
+            'type' => 'single',
+            'amount' => 1,
+            'width' => 90,
+            'height' => 55,
+            'minimal_dpi' => 300,
+            'file_limit' => 100,
+            'bleed_top' => 3,
+            'bleed_right' => 3,
+            'bleed_bottom' => 3,
+            'bleed_left' => 3,
+        ]
+    ],
+]);
+
+// Assign to variant
+$variant->upload_spec = $spec;
+$variant->save();
+
+// Check if variant requires uploads
+if ($variant->requiresUpload()) {
+    // Show upload interface
+}
+
+// Access the spec
+$spec = $variant->uploadSpec();
+$totalFiles = $spec->getTotalFilesRequired();
+```
+
+### On Cart Lines
+
+Cart lines can resolve upload specs through a chain of sources:
+
+```php
+// The resolution chain:
+// 1. Check cart line meta['upload_spec'] (dynamic from configurator)
+// 2. Check purchasable->upload_spec (static on variant)
+// 3. Try supplier API if ProvidesUploadSpec
+
+$uploadSpec = $cartLine->resolveUploadSpec();
+
+if ($cartLine->requiresUpload()) {
+    // Customer needs to upload files
+}
+
+// Check if all required files are uploaded
+if ($cartLine->hasAllRequiredPrintAssets()) {
+    // Ready to proceed
+}
+```
+
+### Dimensional Products
+
+For products with dimensional units (m², m, cm²), the upload spec dimensions can come from the customer's configuration:
+
+```php
+// Variant has unit_code = m² and is dynamic
+// Customer configures: width=100cm, height=50cm
+
+// The upload spec dimensions are overridden from configuration
+$spec = $cartLine->resolveUploadSpec();
+// $spec->uploaders[0]->width = 100
+// $spec->uploaders[0]->height = 50
+
+// You can also manually override dimensions
+$specWithDimensions = $spec->withDimensions(
+    width: 100,
+    height: 50,
+);
+```
+
+## Print Assets
+
+Print assets are the actual files uploaded by customers. They're stored using Laravel's filesystem and linked to cart lines (and later order lines).
+
+### Model Structure
+
+```php
+Lunar\Models\PrintAsset
+
+// Properties
+$printAsset->cart_line_id      // Link to cart line
+$printAsset->order_line_id     // Link to order line (after order)
+$printAsset->uploader_index    // Which uploader (0, 1, 2...)
+$printAsset->file_index        // Which file in that uploader
+$printAsset->disk              // Storage disk
+$printAsset->path              // File path
+$printAsset->original_filename // Original upload name
+$printAsset->mime_type         // File MIME type
+$printAsset->size              // File size in bytes
+$printAsset->width             // Image width in pixels
+$printAsset->height            // Image height in pixels
+$printAsset->dpi               // Detected DPI
+$printAsset->meta              // Additional metadata
+```
+
+### Working with Print Assets
+
+```php
+// Get all print assets for a cart line
+$assets = $cartLine->printAssets;
+
+// Get assets for a specific uploader
+$uploaderAssets = $cartLine->getPrintAssetsForUploader(0);
+
+// Access file
+$url = $printAsset->getUrl();
+$tempUrl = $printAsset->getTemporaryUrl(60); // Expires in 60 minutes
+$contents = $printAsset->getContents();
+
+// Check file type
+if ($printAsset->isImage()) {
+    // Display preview
+}
+
+if ($printAsset->isPdf()) {
+    // Handle PDF
+}
+
+// Human-readable size
+echo $printAsset->getHumanReadableSize(); // "2.5 MB"
+```
+
+## Print Asset Service
+
+The `PrintAssetService` handles file uploads and validation:
+
+```php
+use Lunar\Services\PrintAssetService;
+use Lunar\Services\UploadSpecValidator;
+
+$service = app(PrintAssetService::class);
+
+// Upload a single file
+$printAsset = $service->uploadForCartLine(
+    $cartLine,
+    $uploadedFile,
+    uploaderIndex: 0,
+    fileIndex: 0
+);
+
+// Validate and upload multiple files
+$files = [
+    0 => [$frontFile],           // First uploader
+    1 => [$backFile],            // Second uploader (if frontback)
+];
+
+$result = $service->validateAndUpload($cartLine, $spec, $files);
+
+if ($result->failed()) {
+    // Handle validation errors
+    foreach ($result->getErrorMessages() as $error) {
+        // Display error
+    }
+}
+
+// Delete all assets for a cart line
+$service->deleteForCartLine($cartLine);
+```
+
+## Validation
+
+The `UploadSpecValidator` validates files against specifications:
+
+```php
+use Lunar\Services\UploadSpecValidator;
+
+$validator = app(UploadSpecValidator::class);
+
+// Validate uploaded files
+$result = $validator->validate($uploadSpec, [
+    0 => [$file1, $file2], // Files for uploader 0
+]);
+
+if ($result->passed()) {
+    // All good
+}
+
+if ($result->hasWarnings()) {
+    // Show warnings (e.g., low DPI)
+    foreach ($result->getWarningMessages() as $warning) {
+        // "File 1: Estimated DPI (150) is below recommended minimum of 300"
+    }
+}
+
+// Check completeness (all required files uploaded)
+$completeness = $validator->validateCompleteness(
+    $uploadSpec,
+    $cartLine->printAssets
+);
+```
+
+### What Gets Validated
+
+- **File count** - Correct number of files per uploader
+- **File size** - Within the `file_limit` (in MB)
+- **DPI estimation** - Based on image dimensions and target print size
+- **Aspect ratio** - Warns if image ratio differs significantly from target
+
+## Events
+
+The system dispatches events during the upload lifecycle:
+
+```php
+use Lunar\Events\Upload\UploadSpecResolved;
+use Lunar\Events\Upload\PrintFileUploaded;
+use Lunar\Events\Upload\PrintFilesValidated;
+use Lunar\Events\Upload\PrintAssetReady;
+
+// When upload spec is resolved for a cart line
+Event::listen(UploadSpecResolved::class, function ($event) {
+    $cartLine = $event->cartLine;
+    $spec = $event->uploadSpec;
+    $source = $event->source; // 'static', 'dynamic', 'supplier'
+});
+
+// When a file is uploaded
+Event::listen(PrintFileUploaded::class, function ($event) {
+    $cartLine = $event->cartLine;
+    $asset = $event->printAsset;
+    $uploaderIndex = $event->uploaderIndex;
+});
+
+// After validation
+Event::listen(PrintFilesValidated::class, function ($event) {
+    $result = $event->result;
+    if ($result->failed()) {
+        // Log validation failures
+    }
+});
+
+// When assets are ready on order line (after order creation)
+Event::listen(PrintAssetReady::class, function ($event) {
+    $orderLine = $event->orderLine;
+    $assets = $event->printAssets;
+    // Send to fulfillment, notify supplier, etc.
+});
+```
+
+## Supplier Integration
+
+Supplier drivers can implement `ProvidesUploadSpec` to dynamically resolve upload requirements:
+
+```php
+use Lunar\Base\Contracts\ProvidesUploadSpec;
+use Lunar\Base\DataTransferObjects\Upload\UploadSpec;
+
+class CustomSupplierDriver extends AbstractSupplierDriver implements ProvidesUploadSpec
+{
+    public function resolveUploadSpec(string $externalId, array $configuration): ?UploadSpec
+    {
+        // Call supplier API
+        $response = $this->http()->post('configure', [
+            'product' => $externalId,
+            'options' => $configuration,
+        ]);
+
+        $data = $response->json();
+
+        if (!$data['upload']) {
+            return null;
+        }
+
+        return UploadSpec::fromArray([
+            'upload' => true,
+            'uploaders' => $data['uploaders'],
+            'source' => UploadSpec::SOURCE_SUPPLIER . ':custom',
+        ]);
+    }
+
+    public function requiresUpload(string $externalId, array $configuration): bool
+    {
+        $spec = $this->resolveUploadSpec($externalId, $configuration);
+        return $spec?->requiresUpload() ?? false;
+    }
+}
+```
+
+The Probo driver already implements this interface and extracts upload specs from the `/products/configure` response.
+
+## Order Creation Pipeline
+
+When an order is created, the `SnapshotUploadSpec` pipeline:
+
+1. Snapshots the resolved upload spec to the order line's meta
+2. Copies print assets from cart lines to order lines
+3. Dispatches `PrintAssetReady` event for each order line with assets
+
+This ensures the upload requirements and files are preserved with the order even if the product configuration changes later.
+
+## Configuration
+
+Configure print asset storage in `config/lunar/print_assets.php`:
+
+```php
+return [
+    // Storage disk for print assets
+    'disk' => env('LUNAR_PRINT_ASSETS_DISK', 'local'),
+
+    // Directory within the disk
+    'directory' => 'print-assets',
+];
+```
+
+## Admin Panel
+
+The admin panel includes a "Upload Requirements" page for each product variant where you can:
+
+- Enable/disable upload requirements
+- Configure multiple uploaders
+- Set dimensions (width, height, length in mm)
+- Set quality requirements (minimum DPI, max file size)
+- Configure features (mirror, fill, rotation)
+- Set up tiling options for large format prints
+- Define bleed settings
+
+This is found in the variant's sub-navigation: **Variant → Upload Requirements**
+
+## Example: Business Card Product
+
+```php
+use Lunar\Base\DataTransferObjects\Upload\UploadSpec;
+use Lunar\Models\ProductVariant;
+
+$variant = ProductVariant::find(1);
+
+$variant->upload_spec = UploadSpec::fromArray([
+    'upload' => true,
+    'uploaders' => [
+        [
+            'type' => 'frontback',
+            'amount' => 2,
+            'width' => 90,      // mm
+            'height' => 55,     // mm
+            'minimal_dpi' => 300,
+            'file_limit' => 50, // MB
+            'fill_enabled' => true,
+            'rotation_enabled' => true,
+            'bleed_top' => 3,
+            'bleed_right' => 3,
+            'bleed_bottom' => 3,
+            'bleed_left' => 3,
+        ]
+    ],
+]);
+
+$variant->save();
+
+// On storefront
+$spec = $variant->uploadSpec();
+echo "Upload {$spec->getTotalFilesRequired()} files"; // "Upload 2 files"
+
+$uploader = $spec->getUploader(0);
+echo "Dimensions: {$uploader->width}x{$uploader->height}mm"; // "90x55mm"
+echo "Min DPI: {$uploader->minimalDpi}"; // "300"
+```
+
+## Example: Large Format Banner (with Tiling)
+
+```php
+$variant->upload_spec = UploadSpec::fromArray([
+    'upload' => true,
+    'uploaders' => [
+        [
+            'type' => 'single',
+            'amount' => 1,
+            'width' => null,  // Dynamic - comes from configuration
+            'height' => null, // Dynamic - comes from configuration
+            'minimal_dpi' => 72,
+            'file_limit' => 500,
+            'tiling_enabled' => true,
+            'tiling_mandatory' => false,
+            'tiling_direction' => 'horizontal',
+            'max_width_excl_overlap' => 293.5,
+            'max_height_excl_overlap' => 2393.5,
+        ]
+    ],
+]);
+```
