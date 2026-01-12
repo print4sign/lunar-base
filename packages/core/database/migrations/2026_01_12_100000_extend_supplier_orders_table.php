@@ -23,7 +23,7 @@ return new class extends Migration
             $table->unsignedBigInteger('estimated_cost_price')->nullable()->comment('In cents')->after('cost_price');
             $table->unsignedBigInteger('actual_cost_price')->nullable()->comment('In cents')->after('estimated_cost_price');
             $table->unsignedBigInteger('supplier_shipping_cost')->nullable()->comment('In cents')->after('actual_cost_price');
-            $table->unsignedBigInteger('supplier_additional_costs')->nullable()->comment('In cents')->after('supplier_shipping_cost');
+            $table->json('supplier_additional_costs')->nullable()->after('supplier_shipping_cost');
             $table->unsignedBigInteger('supplier_total_cost')->nullable()->comment('In cents')->after('supplier_additional_costs');
 
             // Revenue tracking fields
@@ -38,7 +38,7 @@ return new class extends Migration
             $table->text('refund_reason')->nullable()->after('refund_issued_at');
 
             // Approval workflow fields
-            $table->boolean('requires_approval')->default(false)->after('refund_reason');
+            $table->boolean('requires_approval')->default(true)->after('refund_reason');
             $table->foreignId('approved_by')->nullable()->constrained('users')->after('requires_approval');
             $table->timestamp('approved_at')->nullable()->after('approved_by');
             $table->text('approval_notes')->nullable()->after('approved_at');
@@ -47,19 +47,18 @@ return new class extends Migration
             // Artwork management fields
             $table->json('artwork_files')->nullable()->after('rejected_reason');
             $table->enum('artwork_status', [
+                'not_required',
                 'pending',
                 'uploaded',
-                'processing',
                 'approved',
                 'rejected',
-                'revision_required',
-            ])->nullable()->after('artwork_files');
+            ])->default('not_required')->after('artwork_files');
             $table->timestamp('artwork_approval_deadline')->nullable()->after('artwork_status');
 
             // Delivery tracking fields
-            $table->date('estimated_delivery_date')->nullable()->after('delivered_at');
+            $table->date('estimated_delivery_date')->nullable()->after('artwork_approval_deadline');
             $table->date('actual_delivery_date')->nullable()->after('estimated_delivery_date');
-            $table->json('tracking_numbers')->nullable()->after('tracking');
+            $table->json('tracking_numbers')->nullable()->after('actual_delivery_date');
             $table->string('tracking_url')->nullable()->after('tracking_numbers');
 
             // External status fields

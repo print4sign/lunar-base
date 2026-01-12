@@ -17,9 +17,9 @@ return new class extends Migration
                 ->nullOnDelete();
 
             // Supplier file tracking
-            $table->string('supplier_file_id')->nullable()->after('supplier_order_id');
-            $table->string('supplier_status')->nullable()->after('supplier_file_id');
-            $table->json('validation_errors')->nullable()->after('supplier_status');
+            $table->string('supplier_file_id')->nullable()->after('supplier_order_id')->comment('External file ID from supplier');
+            $table->string('supplier_status')->nullable()->after('supplier_file_id')->comment('File status at supplier');
+            $table->json('validation_errors')->nullable()->after('supplier_status')->comment('Supplier validation feedback');
 
             // Index for supplier relationships
             $table->index('supplier_order_id');
