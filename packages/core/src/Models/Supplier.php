@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Lunar\Base\BaseModel;
 use Lunar\Base\Traits\HasMacros;
 use Lunar\Base\Traits\LogsActivity;
+use Lunar\Database\Factories\SupplierFactory;
 
 /**
  * @property int $id
@@ -29,6 +30,14 @@ class Supplier extends BaseModel implements Contracts\Supplier
     use HasMacros;
     use LogsActivity;
     use SoftDeletes;
+
+    /**
+     * Return a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return SupplierFactory::new();
+    }
 
     /**
      * {@inheritDoc}

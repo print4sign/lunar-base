@@ -12,7 +12,7 @@ return [
     |
     */
 
-    'default' => env('LUNAR_SUPPLIER_DRIVER', 'offline'),
+    'default' => env('LUNAR_SUPPLIER_DRIVER', 'internal'),
 
     /*
     |--------------------------------------------------------------------------
@@ -26,6 +26,9 @@ return [
     */
 
     'drivers' => [
+        'internal' => [
+            'class' => \Lunar\Drivers\Suppliers\InternalDriver::class,
+        ],
         'probo' => [
             'class' => \Lunar\Drivers\Suppliers\ProboDriver::class,
             'base_url' => env('PROBO_API_URL', 'https://api.proboprints.com/'),
