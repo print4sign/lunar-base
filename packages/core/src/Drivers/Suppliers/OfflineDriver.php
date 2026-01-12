@@ -23,6 +23,14 @@ class OfflineDriver extends AbstractSupplierDriver
     }
 
     /**
+     * Get cart line pipelines for this driver.
+     */
+    public function getCartLinePipelines(): array
+    {
+        return [];
+    }
+
+    /**
      * Sync catalog returns empty for offline suppliers.
      */
     public function syncCatalog(): Collection

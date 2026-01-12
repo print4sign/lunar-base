@@ -58,6 +58,12 @@ class SupplierOrder extends BaseModel implements Contracts\SupplierOrder
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const STATUS_APPROVED = 'approved';
+
+    public const STATUS_ARTWORK_READY = 'artwork_ready';
+
+    public const STATUS_COMPLETED = 'completed';
+
     /**
      * {@inheritDoc}
      */
@@ -207,5 +213,68 @@ class SupplierOrder extends BaseModel implements Contracts\SupplierOrder
     public function scopeFailed($query)
     {
         return $query->where('status', self::STATUS_FAILED);
+    }
+
+    /**
+     * Check if this supplier order can be cancelled.
+     */
+    public function canBeCancelled(): bool
+    {
+        // Already cancelled or delivered
+        if (in_array($this->status, [
+            self::STATUS_CANCELLED,
+            self::STATUS_DELIVERED,
+            self::STATUS_COMPLETED,
+        ])) {
+            return false;
+        }
+
+        // Check supplier's allowed statuses
+        $allowedStatuses = $this->supplier->getMeta('cancellation_allowed_statuses', [
+            self::STATUS_PENDING,
+            self::STATUS_APPROVED,
+            self::STATUS_SUBMITTED,
+        ]);
+
+        if (!in_array($this->status, $allowedStatuses)) {
+            return false;
+        }
+
+        // Check cancellation deadline
+        if ($this->cancellation_deadline && now()->isAfter($this->cancellation_deadline)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Get the cancellation fee based on current status.
+     */
+    public function getCancellationFee(): int
+    {
+        return match($this->status) {
+            self::STATUS_PENDING,
+            self::STATUS_ARTWORK_READY => 0,
+
+            self::STATUS_APPROVED,
+            self::STATUS_SUBMITTED => (int) ($this->estimated_cost_price * 0.1),
+
+            self::STATUS_PROCESSING => (int) ($this->estimated_cost_price * 0.5),
+
+            default => $this->estimated_cost_price,
+        };
+    }
+
+    /**
+     * Get human-readable time remaining until cancellation deadline.
+     */
+    public function getCancellationTimeRemaining(): ?string
+    {
+        if (!$this->canBeCancelled() || !$this->cancellation_deadline) {
+            return null;
+        }
+
+        return $this->cancellation_deadline->diffForHumans();
     }
 }

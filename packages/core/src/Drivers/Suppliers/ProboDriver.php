@@ -36,6 +36,16 @@ class ProboDriver extends AbstractSupplierDriver
     }
 
     /**
+     * Get cart line pipelines for this driver.
+     */
+    public function getCartLinePipelines(): array
+    {
+        return [
+            \Lunar\Drivers\Suppliers\Probo\Pipelines\GetProboPrice::class,
+        ];
+    }
+
+    /**
      * Create an HTTP client instance with Probo authentication.
      */
     protected function http(): PendingRequest
